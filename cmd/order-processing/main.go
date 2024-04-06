@@ -3,14 +3,15 @@ package main
 import (
 	"log"
 
-	"github.com/perocha/order-processing/internal/app/infrastructure/config"
+	"github.com/perocha/order-processing/config"
+	"github.com/perocha/order-processing/pkg/infrastructure/service/eventhub"
 )
 
 func main() {
-	log.Println("Order Processor is starting...")
+	cfg := config.LoadConfig()
+	eventHubService := eventhub.NewService(cfg)
+	log.Println("EventHub service started", eventHubService)
 
-	cfg := config.NewConfig()
+	// Initialize other services and start your application
 
-	log.Println("Event Hub Connection String:", cfg.EventHubConnectionString)
-	log.Println("Cosmos DB Connection String:", cfg.CosmosDBConnectionString)
 }
