@@ -1,7 +1,10 @@
 package domain
 
 type Order struct {
-	// Define your order fields
+	OrderID    string
+	ProductID  string
+	CustomerID string
+	Status     string
 }
 
 // Define your order methods

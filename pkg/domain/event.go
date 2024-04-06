@@ -1,7 +1,12 @@
 package domain
 
+import "time"
+
 type Event struct {
-	// Define your event fields
+	Type      string
+	EventID   string
+	Payload   map[string]interface{}
+	Timestamp time.Time
 }
 
 // Define your event methods

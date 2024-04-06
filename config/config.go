@@ -1,11 +1,70 @@
 package config
 
+import (
+	"context"
+	"errors"
+	"log"
+	"os"
+
+	"github.com/Azure/azure-sdk-for-go/sdk/data/azappconfig"
+)
+
 type Config struct {
-	// Define your configuration fields
+	AppConfigurationConnectionString string
+	EventHubName                     string
+	EventHubConnectionString         string
+	CheckpointStoreContainerName     string
+	CheckpointStoreConnectionString  string
+	AppInsightsInstrumentationKey    string
 }
 
-func LoadConfig() Config {
-	// Load your configuration from environment variables or files
+var client *azappconfig.Client
 
-	return Config{}
+// NewConfig creates a new instance of Config with values loaded from environment variables
+func InitializeConfig() *Config {
+	// Create a new App Configuration client
+	connectionString := os.Getenv("APPCONFIGURATION_CONNECTION_STRING")
+	if connectionString == "" {
+		log.Println("Error: APPCONFIGURATION_CONNECTION_STRING environment variable is not set")
+		return nil
+	}
+
+	var err error
+	client, err = azappconfig.NewClientFromConnectionString(connectionString, nil)
+	if err != nil {
+		log.Println("Error: Failed to create new App Configuration client")
+		return nil
+	}
+
+	appinsights_instrumentationkey, _ := GetVar("APPINSIGHTS_INSTRUMENTATIONKEY")
+	eventHubName, _ := GetVar("EVENTHUB_NAME")
+	eventHubConnectionString, _ := GetVar("EVENTHUB_CONSUMERVNEXT_CONNECTION_STRING")
+	containerName, _ := GetVar("CHECKPOINTSTORE_CONTAINER_NAME")
+	checkpointStoreConnectionString, _ := GetVar("CHECKPOINTSTORE_STORAGE_CONNECTION_STRING")
+
+	return &Config{
+		AppConfigurationConnectionString: appinsights_instrumentationkey,
+		EventHubName:                     eventHubName,
+		EventHubConnectionString:         eventHubConnectionString,
+		CheckpointStoreContainerName:     containerName,
+		CheckpointStoreConnectionString:  checkpointStoreConnectionString,
+	}
+}
+
+// GetVar retrieves a configuration setting by key from App Configuration
+func GetVar(key string) (string, error) {
+	if client == nil {
+		err := errors.New("app configuration client not initialized")
+		log.Println("App configuration client not initialized")
+		return "", err
+	}
+
+	// Get the setting value from App Configuration
+	resp, err := client.GetSetting(context.TODO(), key, nil)
+	if err != nil {
+		log.Printf("Error: Failed to get configuration setting %s\n", key)
+		return "", err
+	}
+
+	return *resp.Value, nil
 }
