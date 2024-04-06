@@ -24,7 +24,7 @@ func main() {
 	log.Printf("Event consumer initialized %v", eventConsumer)
 
 	// Initialize the event hub adapter
-	eventHubAdapter, cleanup, err := eventhub.ConsumerInit(cfg.EventHubName, cfg.EventHubConnectionString, cfg.CheckpointStoreContainerName, cfg.CheckpointStoreConnectionString, eventConsumer)
+	eventHubAdapter, cleanup, err := eventhub.ConsumerInit(cfg.EventHubConnectionString, cfg.EventHubName, cfg.CheckpointStoreContainerName, cfg.CheckpointStoreConnectionString, eventConsumer)
 	if err != nil {
 		log.Println("Error: Failed to initialize event hub adapter")
 		panic("Failed to initialize event hub adapter")
