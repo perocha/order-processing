@@ -19,18 +19,21 @@ func main() {
 	// Initialize configuration
 	cfg := config.InitializeConfig()
 	if cfg == nil {
+		// Print error
 		log.Println("Error: Failed to load configuration")
 		panic("Failed to load configuration")
 	}
 
 	// Initialize App Insights
-	telemetry, err := telemetry.Initialize(cfg.AppInsightsInstrumentationKey)
+	telemetryObj, err := telemetry.Initialize(cfg.AppInsightsInstrumentationKey)
 	if err != nil {
-		log.Println("Error: Failed to initialize App Insights")
+		log.Printf("Failed to initialize App Insights %s\n", err.Error())
 		panic("Failed to initialize App Insights")
 	}
+	telemetryObj.TrackTrace("App Insights initialized", telemetry.Information)
+
 	// Add telemetry to the context
-	ctx := context.WithValue(context.Background(), "telemetry", telemetry)
+	ctx := context.WithValue(context.Background(), "telemetry", telemetryObj)
 
 	// Initialize CosmosDB repository
 	OrderRepository, err := storage.NewCosmosDBOrderRepository(ctx, cfg.CosmosDBConnectionString)

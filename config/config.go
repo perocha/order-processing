@@ -17,12 +17,13 @@ type Config struct {
 	CheckpointStoreConnectionString  string
 	AppInsightsInstrumentationKey    string
 	CosmosDBConnectionString         string
+	client                           *azappconfig.Client
 }
 
-var client *azappconfig.Client
-
-// NewConfig creates a new instance of Config with values loaded from environment variables
+// InitializeConfig creates a new instance of Config with values loaded from environment variables
 func InitializeConfig() *Config {
+	cfg := &Config{}
+
 	// Create a new App Configuration client
 	connectionString := os.Getenv("APPCONFIGURATION_CONNECTION_STRING")
 	if connectionString == "" {
@@ -31,39 +32,32 @@ func InitializeConfig() *Config {
 	}
 
 	var err error
-	client, err = azappconfig.NewClientFromConnectionString(connectionString, nil)
+	cfg.client, err = azappconfig.NewClientFromConnectionString(connectionString, nil)
 	if err != nil {
 		log.Println("Error: Failed to create new App Configuration client")
 		return nil
 	}
 
-	appinsights_instrumentationkey, _ := GetVar("APPINSIGHTS_INSTRUMENTATIONKEY")
-	eventHubName, _ := GetVar("EVENTHUB_NAME")
-	eventHubConnectionString, _ := GetVar("EVENTHUB_CONSUMERVNEXT_CONNECTION_STRING")
-	containerName, _ := GetVar("CHECKPOINTSTORE_CONTAINER_NAME")
-	checkpointStoreConnectionString, _ := GetVar("CHECKPOINTSTORE_STORAGE_CONNECTION_STRING")
-	cosmosDBConnectionString, _ := GetVar("COSMOSDB_CONNECTION_STRING")
+	cfg.AppInsightsInstrumentationKey, _ = cfg.GetVar("APPINSIGHTS_INSTRUMENTATIONKEY")
+	cfg.EventHubName, _ = cfg.GetVar("EVENTHUB_NAME")
+	cfg.EventHubConnectionString, _ = cfg.GetVar("EVENTHUB_CONSUMERVNEXT_CONNECTION_STRING")
+	cfg.CheckpointStoreContainerName, _ = cfg.GetVar("CHECKPOINTSTORE_CONTAINER_NAME")
+	cfg.CheckpointStoreConnectionString, _ = cfg.GetVar("CHECKPOINTSTORE_STORAGE_CONNECTION_STRING")
+	cfg.CosmosDBConnectionString, _ = cfg.GetVar("COSMOSDB_CONNECTION_STRING")
 
-	return &Config{
-		AppConfigurationConnectionString: appinsights_instrumentationkey,
-		EventHubName:                     eventHubName,
-		EventHubConnectionString:         eventHubConnectionString,
-		CheckpointStoreContainerName:     containerName,
-		CheckpointStoreConnectionString:  checkpointStoreConnectionString,
-		CosmosDBConnectionString:         cosmosDBConnectionString,
-	}
+	return cfg
 }
 
 // GetVar retrieves a configuration setting by key from App Configuration
-func GetVar(key string) (string, error) {
-	if client == nil {
+func (cfg *Config) GetVar(key string) (string, error) {
+	if cfg.client == nil {
 		err := errors.New("app configuration client not initialized")
 		log.Println("App configuration client not initialized")
 		return "", err
 	}
 
 	// Get the setting value from App Configuration
-	resp, err := client.GetSetting(context.TODO(), key, nil)
+	resp, err := cfg.client.GetSetting(context.TODO(), key, nil)
 	if err != nil {
 		log.Printf("Error: Failed to get configuration setting %s\n", key)
 		return "", err
