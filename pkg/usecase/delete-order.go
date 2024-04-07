@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"log"
 )
 
 type DeleteOrder struct {
@@ -9,6 +10,6 @@ type DeleteOrder struct {
 }
 
 func (do *DeleteOrder) Execute(ctx context.Context, orderID string) error {
-	// Implement your business logic for deleting an order
+	log.Printf("DeleteOrder::Execute::order=%v", orderID)
 	return nil
 }

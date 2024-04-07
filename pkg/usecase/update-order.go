@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"log"
 
 	"github.com/perocha/order-processing/pkg/domain"
 )
@@ -11,6 +12,6 @@ type UpdateOrder struct {
 }
 
 func (uo *UpdateOrder) Execute(ctx context.Context, order domain.Order) error {
-	// Implement your business logic for updating an order
+	log.Printf("UpdateOrder::Execute::OrderID=%v", order.OrderID)
 	return nil
 }
