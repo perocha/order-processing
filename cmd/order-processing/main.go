@@ -11,6 +11,7 @@ import (
 	"github.com/perocha/order-processing/config"
 	"github.com/perocha/order-processing/pkg/infrastructure/adapter/repository/eventhub"
 	"github.com/perocha/order-processing/pkg/infrastructure/adapter/repository/storage"
+	"github.com/perocha/order-processing/pkg/infrastructure/telemetry"
 	"github.com/perocha/order-processing/pkg/usecase"
 )
 
@@ -23,9 +24,16 @@ func main() {
 	}
 
 	// Initialize App Insights
+	telemetry, err := telemetry.Initialize(cfg.AppInsightsInstrumentationKey)
+	if err != nil {
+		log.Println("Error: Failed to initialize App Insights")
+		panic("Failed to initialize App Insights")
+	}
+	// Add telemetry to the context
+	ctx := context.WithValue(context.Background(), "telemetry", telemetry)
 
 	// Initialize CosmosDB repository
-	OrderRepository, err := storage.NewCosmosDBOrderRepository(cfg.CosmosDBConnectionString)
+	OrderRepository, err := storage.NewCosmosDBOrderRepository(ctx, cfg.CosmosDBConnectionString)
 	if err != nil {
 		log.Println("Error: Failed to initialize CosmosDB repository")
 		panic("Failed to initialize CosmosDB repository")

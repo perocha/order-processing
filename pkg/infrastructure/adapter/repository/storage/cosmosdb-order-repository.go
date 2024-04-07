@@ -13,7 +13,7 @@ type CosmosDBOrderRepository struct {
 }
 
 // Initialize CosmosDB repository using the provided connection string
-func NewCosmosDBOrderRepository(connectionString string) (*CosmosDBOrderRepository, error) {
+func NewCosmosDBOrderRepository(ctx context.Context, connectionString string) (*CosmosDBOrderRepository, error) {
 	client, err := azcosmos.NewClientFromConnectionString(connectionString, nil)
 	log.Printf("CosmosDBOrderRepository::NewCosmosDBOrderRepository::Client=%v::Error=%v", client, err)
 
