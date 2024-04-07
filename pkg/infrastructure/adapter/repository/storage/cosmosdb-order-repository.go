@@ -15,16 +15,18 @@ type CosmosDBOrderRepository struct {
 // Initialize CosmosDB repository using the provided connection string
 func NewCosmosDBOrderRepository(connectionString string) (*CosmosDBOrderRepository, error) {
 	client, err := azcosmos.NewClientFromConnectionString(connectionString, nil)
+	log.Printf("CosmosDBOrderRepository::NewCosmosDBOrderRepository::Client=%v::Error=%v", client, err)
 
 	return nil, nil
+	/*
+		if err != nil {
+			return nil, err
+		}
 
-	if err != nil {
-		return nil, err
-	}
-
-	return &CosmosDBOrderRepository{
-		client: client,
-	}, nil
+		return &CosmosDBOrderRepository{
+			client: client,
+		}, nil
+	*/
 }
 
 // Creates a new order in CosmosDB
