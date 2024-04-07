@@ -113,8 +113,13 @@ func (a *EventHubAdapter) processEvents(ctx context.Context, partitionClient *az
 	defer closePartitionResources(partitionClient)
 
 	for {
-		receiveCtx, receiveCtxCancel := context.WithTimeout(context.TODO(), time.Minute)
-		events, err := partitionClient.ReceiveEvents(receiveCtx, 10, nil)
+		// Receive events from the partition client with a timeout of 20 seconds
+		timeout := time.Second * 20
+		receiveCtx, receiveCtxCancel := context.WithTimeout(context.TODO(), timeout)
+
+		// Limit the wait for a number of events to receive
+		limitEvents := 10
+		events, err := partitionClient.ReceiveEvents(receiveCtx, limitEvents, nil)
 		receiveCtxCancel()
 
 		if err != nil && !errors.Is(err, context.DeadlineExceeded) {

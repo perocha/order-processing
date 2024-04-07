@@ -8,22 +8,20 @@ import (
 	"github.com/perocha/order-processing/pkg/domain"
 )
 
+// EventConsumer defines the interface for consuming events
 type EventConsumer interface {
 	ConsumeEvent(ctx context.Context, event domain.Event) error
 }
 
+// eventConsumerImpl implements the EventConsumer interface
 type eventConsumerImpl struct {
-	createOrder CreateOrder
-	deleteOrder DeleteOrder
-	updateOrder UpdateOrder
+	orderProcessor OrderProcessImpl
 }
 
-// Creates a new event consumer
-func NewEventConsumer(createOrder CreateOrder, deleteOrder DeleteOrder, updateOrder UpdateOrder) EventConsumer {
+// NewEventConsumer creates a new event consumer
+func NewEventConsumer(orderProcessor OrderProcessImpl) EventConsumer {
 	return &eventConsumerImpl{
-		createOrder: createOrder,
-		deleteOrder: deleteOrder,
-		updateOrder: updateOrder,
+		orderProcessor: orderProcessor,
 	}
 }
 
@@ -34,13 +32,13 @@ func (e *eventConsumerImpl) ConsumeEvent(ctx context.Context, event domain.Event
 	switch event.Type {
 	case "create_order":
 		order := e.convertEventToOrder(event)
-		return e.createOrder.Execute(ctx, order)
+		return e.orderProcessor.ProcessCreateOrder(ctx, order)
 	case "delete_order":
 		order := e.convertEventToOrder(event)
-		return e.deleteOrder.Execute(ctx, order.OrderID)
+		return e.orderProcessor.ProcessDeleteOrder(ctx, order.OrderID)
 	case "update_order":
 		order := e.convertEventToOrder(event)
-		return e.updateOrder.Execute(ctx, order)
+		return e.orderProcessor.ProcessUpdateOrder(ctx, order)
 	default:
 		log.Printf("Unknown event type: %s", event.Type)
 		return errors.New("unknown event type")

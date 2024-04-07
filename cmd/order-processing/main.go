@@ -30,15 +30,13 @@ func main() {
 		log.Println("Error: Failed to initialize CosmosDB repository")
 		panic("Failed to initialize CosmosDB repository")
 	}
-	log.Println("CosmosDB repository initialized %v", OrderRepository)
+	log.Printf("CosmosDB repository initialized %v\n", OrderRepository)
 
-	// Initialize order processing use cases
-	createOrder := usecase.CreateOrder{}
-	deleteOrder := usecase.DeleteOrder{}
-	updateOrder := usecase.UpdateOrder{}
+	// Initialize order processing
+	orderProcessing := usecase.NewOrderProcess(OrderRepository)
 
-	// Initialize the event consumer (use case)
-	eventConsumer := usecase.NewEventConsumer(createOrder, deleteOrder, updateOrder)
+	// Initialize the event consumer
+	eventConsumer := usecase.NewEventConsumer(*orderProcessing)
 	log.Printf("Event consumer initialized %v", eventConsumer)
 
 	// Initialize the event hub adapter in a separate goroutine
@@ -71,7 +69,7 @@ func main() {
 		case <-signals:
 			log.Println("Received termination signal")
 			return
-		case <-time.After(5 * time.Second):
+		case <-time.After(1 * time.Minute):
 			log.Println("Waiting for termination signal")
 		}
 	}
