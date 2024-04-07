@@ -6,5 +6,3 @@ type Order struct {
 	CustomerID string
 	Status     string
 }
-
-// Define your order methods

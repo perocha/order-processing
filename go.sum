@@ -1,7 +1,11 @@
+github.com/Azure/azure-sdk-for-go v68.0.0+incompatible h1:fcYLmCpyNYRnvJbPerq7U0hS+6+I79yEDJBqVNcqUzU=
+github.com/Azure/azure-sdk-for-go v68.0.0+incompatible/go.mod h1:9XXNKU+eRnpl9moKnB4QOLf1HestfXbmab5FXxiDBjc=
 github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.2 h1:c4k2FIYIh4xtwqrQwV0Ct1v5+ehlNXj5NI/MWVsiTkQ=
 github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.2/go.mod h1:5FDJtLEO/GxwNgUxbwrY3LP0pEoThTQJtk2oysdXHxM=
 github.com/Azure/azure-sdk-for-go/sdk/data/azappconfig v1.1.0 h1:AdaGDU3FgoUC2tsd3vsd9JblRrpFLUsS38yh1eLYfwM=
 github.com/Azure/azure-sdk-for-go/sdk/data/azappconfig v1.1.0/go.mod h1:6tpINME7dnF7bLlb8Ubj6FtM9CFZrCn7aT02pcYrklM=
+github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos v0.3.6 h1:oBqQLSI1pZwGOdXJAoJJSzmff9tlfD4KroVfjQQmd0g=
+github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos v0.3.6/go.mod h1:Beh5cHIXJ0oWEDWk9lNFtuklCojLLQ5hl+LqSNTTs0I=
 github.com/Azure/azure-sdk-for-go/sdk/internal v1.5.2 h1:LqbJ/WzJUwBf8UiaSzgX7aMclParm9/5Vgp+TY51uBQ=
 github.com/Azure/azure-sdk-for-go/sdk/internal v1.5.2/go.mod h1:yInRyqWXAuaPrgI7p70+lDDgh3mlBohis29jGMISnmc=
 github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs v1.1.0 h1:vEe09cdSBy7evqoVUvuitnsjyozsSzI4TbGgwu01+TI=
