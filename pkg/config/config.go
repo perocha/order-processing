@@ -26,7 +26,6 @@ func InitializeConfig() *Config {
 
 	// Create a new App Configuration client
 	connectionString := os.Getenv("APPCONFIGURATION_CONNECTION_STRING")
-	connectionString = "Endpoint=https://microtest-appconfig.azconfig.io;Id=Hycy;Secret=+HyEb6wpTLizbTlWmdPyw2mXCjONCCRt04oqx8AhdV0="
 	if connectionString == "" {
 		log.Println("Error: APPCONFIGURATION_CONNECTION_STRING environment variable is not set")
 		return nil
