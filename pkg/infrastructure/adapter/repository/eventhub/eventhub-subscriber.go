@@ -11,41 +11,43 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs/checkpoints"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/container"
 
-	"github.com/perocha/order-processing/pkg/domain"
-	"github.com/perocha/order-processing/pkg/usecase"
+	"github.com/perocha/order-processing/pkg/domain/event"
+	"github.com/perocha/order-processing/pkg/infrastructure/telemetry"
 )
 
 type EventHubAdapter struct {
-	eventProcessor   usecase.EventConsumer
+	eventProcessor   event.EventConsumer
 	eventhubConsumer *azeventhubs.Processor
 }
 
-func ConsumerInit(eventHubConnectionString, eventHubName, containerName, checkpointStoreConnectionString string, eventProcessor usecase.EventConsumer) (*EventHubAdapter, context.CancelFunc, error) {
+func ConsumerInit(ctx context.Context, eventHubConnectionString, eventHubName, containerName, checkpointStoreConnectionString string, eventProcessor event.EventConsumer) (*EventHubAdapter, context.CancelFunc, error) {
+	telemetryClient := telemetry.GetTelemetryClient(ctx)
+
 	// create a container client using a connection string and container name
 	checkClient, err := container.NewClientFromConnectionString(checkpointStoreConnectionString, containerName, nil)
 	if err != nil {
-		log.Println("eventhub-subscriber::Error creating container client", err)
+		telemetryClient.TrackException(ctx, "ConsumerInit::Error creating container client", err, telemetry.Critical, nil, true)
 		panic(err)
 	}
 
 	// create a checkpoint store that will be used by the event hub
 	checkpointStore, err := checkpoints.NewBlobStore(checkClient, nil)
 	if err != nil {
-		log.Println("eventhub-subscriber::Error creating checkpoint store", err)
+		telemetryClient.TrackException(ctx, "ConsumerInit::Error creating checkpoint store", err, telemetry.Critical, nil, true)
 		panic(err)
 	}
 
 	// create a consumer client using a connection string to the namespace and the event hub
 	consumerClient, err := azeventhubs.NewConsumerClientFromConnectionString(eventHubConnectionString, eventHubName, azeventhubs.DefaultConsumerGroup, nil)
 	if err != nil {
-		log.Println("eventhub-subscriber::Error creating consumer client", err)
+		telemetryClient.TrackException(ctx, "ConsumerInit::Error creating consumer client", err, telemetry.Critical, nil, true)
 		panic(err)
 	}
 
 	// Create a processor to receive and process events
 	processor, err := azeventhubs.NewProcessor(consumerClient, checkpointStore, nil)
 	if err != nil {
-		log.Println("eventhub-subscriber::Error creating processor", err)
+		telemetryClient.TrackException(ctx, "ConsumerInit::Error creating processor", err, telemetry.Critical, nil, true)
 		panic(err)
 	}
 
@@ -55,12 +57,12 @@ func ConsumerInit(eventHubConnectionString, eventHubName, containerName, checkpo
 	}
 
 	// Run all partition clients
-	go adapter.dispatchPartitionClients(processor)
+	go adapter.dispatchPartitionClients(ctx, processor)
 
 	processorCtx, processorCancel := context.WithCancel(context.TODO())
 
 	if err := processor.Run(processorCtx); err != nil {
-		log.Println("eventhub-subscriber::Error processor run", err)
+		telemetryClient.TrackException(ctx, "ConsumerInit::Error processor run", err, telemetry.Critical, nil, true)
 		processorCancel()
 		consumerClient.Close(context.TODO())
 		return nil, nil, err
@@ -75,7 +77,9 @@ func ConsumerInit(eventHubConnectionString, eventHubName, containerName, checkpo
 }
 
 // For each partition in the event hub, create a partition client with processEvents as the function to process events
-func (a *EventHubAdapter) dispatchPartitionClients(processor *azeventhubs.Processor) {
+func (a *EventHubAdapter) dispatchPartitionClients(ctx context.Context, processor *azeventhubs.Processor) {
+	telemetryClient := telemetry.GetTelemetryClient(ctx)
+
 	for {
 		// Track time and create a new operation ID, that will be used to track the end to end operation
 		//startTime := time.Now()
@@ -96,11 +100,14 @@ func (a *EventHubAdapter) dispatchPartitionClients(processor *azeventhubs.Proces
 			// Create a new context with the operation ID
 			//ctx := context.WithValue(context.Background(), shared.OperationIDKeyContextKey, operationID)
 
-			log.Printf("eventhub-subscriber::PartitionID::%s::Partition client initialized\n", partitionClient.PartitionID())
+			telemetryClient.TrackTrace(ctx, "Partition ID "+partitionClient.PartitionID()+"::Client initialized", telemetry.Information, nil, true)
 
 			// Process events for the partition client
-			if err := a.processEvents(context.TODO(), partitionClient); err != nil {
-				log.Printf("eventhub-subscriber::Error processing events for partition %s: %v\n", partitionClient.PartitionID(), err)
+			if err := a.processEvents(ctx, partitionClient); err != nil {
+				properties := map[string]string{
+					"PartitionID": partitionClient.PartitionID(),
+				}
+				telemetryClient.TrackException(ctx, "Error processing events", err, telemetry.Error, properties, true)
 				panic(err)
 			}
 		}()
@@ -110,6 +117,8 @@ func (a *EventHubAdapter) dispatchPartitionClients(processor *azeventhubs.Proces
 // ProcessEvents implements the logic that is executed when events are received from the event hub
 // func processEvents(ctx context.Context, partitionClient *azeventhubs.ProcessorPartitionClient) error {
 func (a *EventHubAdapter) processEvents(ctx context.Context, partitionClient *azeventhubs.ProcessorPartitionClient) error {
+	telemetryClient := telemetry.GetTelemetryClient(ctx)
+
 	defer closePartitionResources(partitionClient)
 
 	for {
@@ -129,32 +138,34 @@ func (a *EventHubAdapter) processEvents(ctx context.Context, partitionClient *az
 		// Uncomment the following line to verify that the consumer is trying to receive events
 		log.Printf("eventhub-subscriber::PartitionID=%s::Processing %d event(s)\n", partitionClient.PartitionID(), len(events))
 
-		for _, event := range events {
-			log.Println("eventhub-subscriber::Message received: ", string(event.Body))
+		for _, eventItem := range events {
+			log.Println("eventhub-subscriber::Message received: ", string(eventItem.Body))
 
 			// Events received!! Process the message
-			msg := domain.Event{}
+			msg := event.Event{}
 			// Unmarshal the event body into the message struct
-			err := json.Unmarshal(event.Body, &msg)
+			err := json.Unmarshal(eventItem.Body, &msg)
 			if err != nil {
 				// Error unmarshalling the event body, discard the message
-				log.Println("eventhub-subscriber::Error unmarshalling event body, discarding message", err)
+				telemetryClient.TrackTrace(ctx, "processEvents::Error unmarshalling event body", telemetry.Error, nil, true)
+				//return err
 			} else {
 				// Process the message
 				err = a.eventProcessor.ConsumeEvent(ctx, msg)
 				if err != nil {
-					log.Println("eventhub-subscriber::Error processing message, discarding message", err)
+					// Error processing the message, discard the message
+					telemetryClient.TrackTrace(ctx, "processEvents::Error processing message", telemetry.Error, nil, true)
 					//return err
 				}
 			}
 
-			log.Printf("eventhub-subscriber::PartitionID::%s::Events received %v\n", partitionClient.PartitionID(), string(event.Body))
-			log.Printf("Offset: %d Sequence number: %d MessageID: %s\n", event.Offset, event.SequenceNumber, *event.MessageID)
+			log.Printf("eventhub-subscriber::PartitionID::%s::Events received %v\n", partitionClient.PartitionID(), string(eventItem.Body))
+			log.Printf("Offset: %d Sequence number: %d MessageID: %s\n", eventItem.Offset, eventItem.SequenceNumber, *eventItem.MessageID)
 		}
 
 		if len(events) != 0 {
 			if err := partitionClient.UpdateCheckpoint(context.TODO(), events[len(events)-1], nil); err != nil {
-				log.Println("eventhub-subscriber::Error updating checkpoint", err)
+				telemetryClient.TrackException(ctx, "processEvents::Error updating checkpoint", err, telemetry.Error, nil, true)
 				return err
 			}
 		}

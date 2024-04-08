@@ -5,11 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/perocha/order-processing/pkg/appcontext"
 
 	"github.com/microsoft/ApplicationInsights-Go/appinsights"
 	"github.com/microsoft/ApplicationInsights-Go/appinsights/contracts"
+)
+
+const (
+	SERVICE_NAME = "OrderProcessing"
 )
 
 // Telemetry defines the telemetry client
@@ -43,25 +48,30 @@ func Initialize(instrumentationKey string) (*Telemetry, error) {
 
 // TrackTrace sends a trace telemetry event
 func (t *Telemetry) TrackTrace(ctx context.Context, message string, severity SeverityLevel, properties map[string]string, logToConsole bool) {
+	// Validate the telemetry client
 	if t.client == nil {
 		panic("Telemetry client not initialized")
 	}
 
 	// Create the log message
-	logMessage := fmt.Sprintf("Message: %s, Properties: %v, Severity: %v\n", message, properties, severity)
+	txtMessage := fmt.Sprintf("%s::%s", SERVICE_NAME, message)
+	consoleMessage := fmt.Sprintf("%s::Severity=%v", txtMessage, severity)
+	if len(properties) > 0 {
+		consoleMessage = fmt.Sprintf("%s::Properties=%v", consoleMessage, properties)
+	}
 
 	// If logToConsole is true, print the log message
 	if logToConsole {
-		log.Println(logMessage)
+		log.Println(consoleMessage)
 	}
 
 	// Create the new trace
-	trace := appinsights.NewTraceTelemetry(message, contracts.SeverityLevel(severity))
+	trace := appinsights.NewTraceTelemetry(txtMessage, contracts.SeverityLevel(severity))
 	for k, v := range properties {
 		trace.Properties[k] = v
 	}
 
-	// Get the operationID from the context
+	// Get the operationID from the context, if available to set the parent id in App Insights
 	if operationID, ok := ctx.Value(appcontext.OperationIDKeyContextKey).(string); ok {
 		// Set parent id
 		if operationID != "" {
@@ -71,4 +81,113 @@ func (t *Telemetry) TrackTrace(ctx context.Context, message string, severity Sev
 
 	// Send the trace to App Insights
 	t.client.Track(trace)
+}
+
+// TrackException sends an exception telemetry event
+func (t *Telemetry) TrackException(ctx context.Context, message string, err error, severity SeverityLevel, properties map[string]string, logToConsole bool) {
+	if t.client == nil {
+		panic("Telemetry client not initialized")
+	}
+
+	// Create the log message
+	txtMessage := fmt.Sprintf("%s::%s", SERVICE_NAME, message)
+	consoleMessage := fmt.Sprintf("%s::Error=%s::Severity=%v", txtMessage, err.Error(), severity)
+	if len(properties) > 0 {
+		consoleMessage = fmt.Sprintf("%s::Properties=%v", consoleMessage, properties)
+	}
+
+	// If logToConsole is true, print the log message
+	if logToConsole {
+		log.Println(consoleMessage)
+	}
+
+	// Create the new exception
+	exception := appinsights.NewExceptionTelemetry(err)
+	exception.SeverityLevel = (contracts.SeverityLevel)(severity)
+	for k, v := range properties {
+		exception.Properties[k] = v
+	}
+
+	t.client.Track(exception)
+}
+
+// TrackRequest sends a request telemetry event
+func (t *Telemetry) TrackRequest(ctx context.Context, method string, url string, duration time.Duration, responseCode string, success bool, source string, properties map[string]string, logToConsole bool) string {
+	if t.client == nil {
+		panic("Telemetry client not initialized")
+	}
+
+	// Create the log message
+	consoleMessage := fmt.Sprintf("%s::Method=%s::URL=%s", SERVICE_NAME, method, url)
+	if len(properties) > 0 {
+		consoleMessage = fmt.Sprintf("%s::Properties=%v", consoleMessage, properties)
+	}
+
+	// If logToConsole is true, print the log message
+	if logToConsole {
+		log.Println(consoleMessage)
+	}
+
+	// Create the new request
+	request := appinsights.NewRequestTelemetry(method, url, duration, responseCode)
+	request.Success = success
+	for k, v := range properties {
+		request.Properties[k] = v
+	}
+
+	// Send the request to App Insights
+	t.client.Track(request)
+
+	// Return the operation id
+	return request.Tags.Operation().GetId()
+}
+
+// TrackDependency sends a dependency telemetry event
+func (t *Telemetry) TrackDependency(ctx context.Context, dependencyData string, dependencyName string, dependencyType string, dependencyTarget string, dependencySuccess bool, startTime time.Time, endTime time.Time, properties map[string]string, logToConsole bool) string {
+	if t.client == nil {
+		panic("Telemetry client not initialized")
+	}
+
+	// Create the log message
+	txtMessage := fmt.Sprintf("%s::%s::%s", SERVICE_NAME, dependencyData, dependencyName)
+	consoleMessage := txtMessage
+	if len(properties) > 0 {
+		consoleMessage = fmt.Sprintf("%s::Properties=%v", consoleMessage, properties)
+	}
+
+	// If logToConsole is true, print the log message
+	if logToConsole {
+		log.Println(consoleMessage)
+	}
+
+	// Create a new dependency
+	dependency := appinsights.NewRemoteDependencyTelemetry(txtMessage, dependencyType, dependencyTarget, dependencySuccess)
+
+	dependency.Data = dependencyData
+	dependency.MarkTime(startTime, endTime)
+	for k, v := range properties {
+		dependency.Properties[k] = v
+	}
+
+	// Get the operationID from the context
+	if operationID, ok := ctx.Value(appcontext.OperationIDKeyContextKey).(string); ok {
+		// Set parent id
+		if operationID != "" {
+			dependency.Tags.Operation().SetParentId(operationID)
+		}
+	}
+
+	// Send the dependency to App Insights
+	t.client.Track(dependency)
+
+	return dependency.Tags.Operation().GetId()
+}
+
+// Helper function to retrieve the telemetry client from the context
+func GetTelemetryClient(ctx context.Context) *Telemetry {
+	telemetryClient, ok := ctx.Value(appcontext.TelemetryContextKey).(*Telemetry)
+	if !ok {
+		log.Panic("Telemetry client not found in context")
+	}
+	return telemetryClient
 }

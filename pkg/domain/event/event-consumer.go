@@ -1,33 +1,38 @@
-package usecase
+package event
 
 import (
 	"context"
 	"errors"
 	"log"
 
-	"github.com/perocha/order-processing/pkg/domain"
+	"github.com/perocha/order-processing/pkg/domain/order"
+	"github.com/perocha/order-processing/pkg/infrastructure/telemetry"
 )
 
 // EventConsumer defines the interface for consuming events
 type EventConsumer interface {
-	ConsumeEvent(ctx context.Context, event domain.Event) error
+	ConsumeEvent(ctx context.Context, event Event) error
 }
 
 // eventConsumerImpl implements the EventConsumer interface
 type eventConsumerImpl struct {
-	orderProcessor OrderProcessImpl
+	orderProcessor order.OrderProcessImpl
 }
 
 // NewEventConsumer creates a new event consumer
-func NewEventConsumer(orderProcessor OrderProcessImpl) EventConsumer {
+func NewEventConsumer(orderProcessor order.OrderProcessImpl) EventConsumer {
 	return &eventConsumerImpl{
 		orderProcessor: orderProcessor,
 	}
 }
 
 // Consumes an event and processes it
-func (e *eventConsumerImpl) ConsumeEvent(ctx context.Context, event domain.Event) error {
-	log.Printf("event-consumer::Type: %s::EventID: %s::Timestamp: %s", event.Type, event.EventID, event.Timestamp)
+func (e *eventConsumerImpl) ConsumeEvent(ctx context.Context, event Event) error {
+	telemetryClient := telemetry.GetTelemetryClient(ctx)
+
+	// New event received, process it
+	properties := event.ToMap()
+	telemetryClient.TrackTrace(ctx, "ConsumeEvent::New event received, processing order", telemetry.Information, properties, true)
 
 	switch event.Type {
 	case "create_order":
@@ -46,8 +51,8 @@ func (e *eventConsumerImpl) ConsumeEvent(ctx context.Context, event domain.Event
 }
 
 // Convert event to order
-func (e *eventConsumerImpl) convertEventToOrder(event domain.Event) domain.Order {
-	order := domain.Order{
+func (e *eventConsumerImpl) convertEventToOrder(event Event) order.Order {
+	order := order.Order{
 		OrderID: event.EventID,
 	}
 	return order
