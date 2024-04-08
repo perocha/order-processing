@@ -8,7 +8,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/perocha/order-processing/config"
+	"github.com/perocha/order-processing/pkg/appcontext"
+	"github.com/perocha/order-processing/pkg/config"
 	"github.com/perocha/order-processing/pkg/infrastructure/adapter/repository/eventhub"
 	"github.com/perocha/order-processing/pkg/infrastructure/adapter/repository/storage"
 	"github.com/perocha/order-processing/pkg/infrastructure/telemetry"
@@ -25,30 +26,29 @@ func main() {
 	}
 
 	// Initialize App Insights
-	telemetryObj, err := telemetry.Initialize(cfg.AppInsightsInstrumentationKey)
+	telemetryClient, err := telemetry.Initialize(cfg.AppInsightsInstrumentationKey)
 	if err != nil {
 		log.Printf("Failed to initialize App Insights %s\n", err.Error())
 		panic("Failed to initialize App Insights")
 	}
-	telemetryObj.TrackTrace("App Insights initialized", telemetry.Information)
-
-	// Add telemetry to the context
-	ctx := context.WithValue(context.Background(), "telemetry", telemetryObj)
+	telemetryClient.TrackTrace("OrderProcessing::Main::App Insights initialized", telemetry.Information, nil, true)
+	// Add telemetry object to the context, so that it can be reused across the application
+	ctx := context.WithValue(context.Background(), appcontext.TelemetryContextKey, telemetryClient)
 
 	// Initialize CosmosDB repository
 	OrderRepository, err := storage.NewCosmosDBOrderRepository(ctx, cfg.CosmosDBConnectionString)
 	if err != nil {
-		log.Println("Error: Failed to initialize CosmosDB repository")
+		telemetryClient.TrackTrace("OrderProcessing::Main::Failed to initialize CosmosDB repository", telemetry.Error, nil, true)
 		panic("Failed to initialize CosmosDB repository")
 	}
-	log.Printf("CosmosDB repository initialized %v\n", OrderRepository)
+	telemetryClient.TrackTrace("OrderProcessing::Main::CosmosDB repository initialized", telemetry.Information, nil, true)
 
-	// Initialize order processing
+	// Initialize order processing module
 	orderProcessing := usecase.NewOrderProcess(OrderRepository)
 
-	// Initialize the event consumer
+	// Initialize the event consumer module
 	eventConsumer := usecase.NewEventConsumer(*orderProcessing)
-	log.Printf("Event consumer initialized %v", eventConsumer)
+	telemetryClient.TrackTrace("OrderProcessing::Main::Event consumer initialized", telemetry.Information, nil, true)
 
 	// Initialize the event hub adapter in a separate goroutine
 	var cleanup context.CancelFunc
@@ -56,16 +56,15 @@ func main() {
 		var err error
 		_, cleanup, err = eventhub.ConsumerInit(cfg.EventHubConnectionString, cfg.EventHubName, cfg.CheckpointStoreContainerName, cfg.CheckpointStoreConnectionString, eventConsumer)
 		if err != nil {
-			log.Println("Error: Failed to initialize event hub adapter")
+			telemetryClient.TrackTrace("OrderProcessing::Main::Failed to initialize event hub adapter", telemetry.Error, nil, true)
 			panic("Failed to initialize event hub adapter")
 		}
-		log.Println("Event hub adapter initialized")
+		telemetryClient.TrackTrace("OrderProcessing::Main::Event hub adapter initialized", telemetry.Information, nil, true)
 	}()
-
 	// Defer cleanup before entering the infinite loop
 	defer func() {
 		if cleanup != nil {
-			log.Println("Cleaning up resources")
+			telemetryClient.TrackTrace("OrderProcessing::Main::Cleaning up resources", telemetry.Information, nil, true)
 			cleanup()
 		}
 	}()
@@ -78,9 +77,10 @@ func main() {
 	for {
 		select {
 		case <-signals:
-			log.Println("Received termination signal")
+			telemetryClient.TrackTrace("OrderProcessing::Main::Received termination signal", telemetry.Information, nil, true)
 			return
 		case <-time.After(1 * time.Minute):
+			// Do nothing
 			log.Println("Waiting for termination signal")
 		}
 	}

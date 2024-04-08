@@ -1,7 +1,12 @@
 package telemetry
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	"log"
+
+	"github.com/perocha/order-processing/pkg/appcontext"
 
 	"github.com/microsoft/ApplicationInsights-Go/appinsights"
 	"github.com/microsoft/ApplicationInsights-Go/appinsights/contracts"
@@ -37,7 +42,33 @@ func Initialize(instrumentationKey string) (*Telemetry, error) {
 }
 
 // TrackTrace sends a trace telemetry event
-func (t *Telemetry) TrackTrace(message string, severity SeverityLevel) {
-	t.client.TrackTrace(message, contracts.SeverityLevel(severity))
-	// Additional logic for tracking telemetry
+func (t *Telemetry) TrackTrace(ctx context.Context, message string, severity SeverityLevel, properties map[string]string, logToConsole bool) {
+	if t.client == nil {
+		panic("Telemetry client not initialized")
+	}
+
+	// Create the log message
+	logMessage := fmt.Sprintf("Message: %s, Properties: %v, Severity: %v\n", message, properties, severity)
+
+	// If logToConsole is true, print the log message
+	if logToConsole {
+		log.Println(logMessage)
+	}
+
+	// Create the new trace
+	trace := appinsights.NewTraceTelemetry(message, contracts.SeverityLevel(severity))
+	for k, v := range properties {
+		trace.Properties[k] = v
+	}
+
+	// Get the operationID from the context
+	if operationID, ok := ctx.Value(appcontext.OperationIDKeyContextKey).(string); ok {
+		// Set parent id
+		if operationID != "" {
+			trace.Tags.Operation().SetParentId(operationID)
+		}
+	}
+
+	// Send the trace to App Insights
+	t.client.Track(trace)
 }

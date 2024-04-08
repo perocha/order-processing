@@ -4,6 +4,9 @@ import (
 	"context"
 	"log"
 
+	"github.com/perocha/order-processing/pkg/appcontext"
+	"github.com/perocha/order-processing/pkg/infrastructure/telemetry"
+
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
 	"github.com/perocha/order-processing/pkg/domain"
 )
@@ -14,8 +17,12 @@ type CosmosDBOrderRepository struct {
 
 // Initialize CosmosDB repository using the provided connection string
 func NewCosmosDBOrderRepository(ctx context.Context, connectionString string) (*CosmosDBOrderRepository, error) {
+	telemetryClient := appcontext.GetTelemetryClient(ctx)
+
 	client, err := azcosmos.NewClientFromConnectionString(connectionString, nil)
+
 	log.Printf("CosmosDBOrderRepository::NewCosmosDBOrderRepository::Client=%v::Error=%v", client, err)
+	telemetryClient.TrackTrace("Initializing CosmosDB repository", telemetry.Information)
 
 	return nil, nil
 	/*
