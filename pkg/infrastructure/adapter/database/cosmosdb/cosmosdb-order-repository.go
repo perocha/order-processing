@@ -35,6 +35,14 @@ func NewCosmosDBOrderRepository(ctx context.Context, connectionString string) (*
 	*/
 }
 
+// Initializes the order processor
+func (r *CosmosDBOrderRepository) InitOrderProcessor(ctx context.Context) error {
+	telemetryClient := telemetry.GetTelemetryClient(ctx)
+
+	telemetryClient.TrackTrace(ctx, "CosmosDBOrderRepository::InitOrderProcessor", telemetry.Information, nil, true)
+	return nil
+}
+
 // Creates a new order in CosmosDB
 func (r *CosmosDBOrderRepository) CreateOrder(ctx context.Context, order order.Order) error {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)

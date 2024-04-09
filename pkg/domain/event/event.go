@@ -16,3 +16,7 @@ func (e *Event) ToMap() map[string]string {
 		"Timestamp": e.Timestamp.Format(time.RFC3339),
 	}
 }
+
+type EventProcessor interface {
+	ProcessEvent(event Event) error
+}

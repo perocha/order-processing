@@ -10,13 +10,6 @@ type Order struct {
 	Status     string
 }
 
-// Order methods
-type OrderRepository interface {
-	CreateOrder(ctx context.Context, order Order) error
-	UpdateOrder(ctx context.Context, order Order) error
-	DeleteOrder(ctx context.Context, orderID string) error
-}
-
 // Convert Order struct into a map[string]string
 func (e *Order) ToMap() map[string]string {
 	return map[string]string{
@@ -25,4 +18,18 @@ func (e *Order) ToMap() map[string]string {
 		"CustomerID": e.CustomerID,
 		"Status":     e.Status,
 	}
+}
+
+// Order methods
+type OrderRepository interface {
+	CreateOrder(ctx context.Context, order Order) error
+	UpdateOrder(ctx context.Context, order Order) error
+	DeleteOrder(ctx context.Context, orderID string) error
+}
+
+// Order methods
+type RenewOrderProcessor interface {
+	CreateOrder(ctx context.Context, order Order) error
+	UpdateOrder(ctx context.Context, order Order) error
+	DeleteOrder(ctx context.Context, orderID string) error
 }

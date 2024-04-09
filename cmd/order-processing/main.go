@@ -10,7 +10,6 @@ import (
 
 	"github.com/perocha/order-processing/pkg/appcontext"
 	"github.com/perocha/order-processing/pkg/config"
-	"github.com/perocha/order-processing/pkg/domain/event"
 	"github.com/perocha/order-processing/pkg/domain/order"
 	"github.com/perocha/order-processing/pkg/infrastructure/adapter/repository/eventhub"
 	"github.com/perocha/order-processing/pkg/infrastructure/adapter/repository/storage"
@@ -44,30 +43,24 @@ func main() {
 	}
 	telemetryClient.TrackTrace(ctx, "Main::CosmosDB repository initialized", telemetry.Information, nil, true)
 
-	// Initialize order processing module
-	orderProcessing := order.NewOrderProcess(OrderRepository)
+	// Initialize the EventHub adapter
+	eventHubAdapter, err := eventhub.EventHubAdapterInit(ctx, cfg.EventHubConnectionString, cfg.EventHubName, cfg.CheckpointStoreContainerName, cfg.CheckpointStoreConnectionString)
+	if err != nil {
+		telemetryClient.TrackException(ctx, "Failed to initialize event hub adapter", err, telemetry.Critical, nil, true)
+		panic("Failed to initialize event hub adapter")
+	}
 
-	// Initialize the event consumer module
-	eventConsumer := event.NewEventConsumer(*orderProcessing)
-	telemetryClient.TrackTrace(ctx, "Main::Event consumer initialized", telemetry.Information, nil, true)
+	// Initialize the event manager
+	eventManager := order.NewEventManager(eventHubAdapter, OrderRepository)
 
-	// Initialize the event hub adapter in a separate goroutine
-	var cleanup context.CancelFunc
+	// Start listening for events
 	go func() {
-		var err error
-		_, cleanup, err = eventhub.ConsumerInit(ctx, cfg.EventHubConnectionString, cfg.EventHubName, cfg.CheckpointStoreContainerName, cfg.CheckpointStoreConnectionString, eventConsumer)
-		if err != nil {
-			telemetryClient.TrackException(ctx, "Failed to initialize event hub adapter", err, telemetry.Critical, nil, true)
-			panic("Failed to initialize event hub adapter")
+		if err := eventManager.StartListening(ctx); err != nil {
+			telemetryClient.TrackException(ctx, "Failed to start listening", err, telemetry.Critical, nil, true)
+			panic("Failed to start listening")
 		}
-		telemetryClient.TrackTrace(ctx, "Main::Event hub adapter initialized", telemetry.Information, nil, true)
-	}()
-	// Defer cleanup before entering the infinite loop
-	defer func() {
-		if cleanup != nil {
-			telemetryClient.TrackTrace(ctx, "Main::Cleaning up resources", telemetry.Information, nil, true)
-			cleanup()
-		}
+
+		telemetryClient.TrackTrace(ctx, "Main::Listening for events", telemetry.Information, nil, true)
 	}()
 
 	// Create a channel to listen for termination signals
