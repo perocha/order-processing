@@ -1,11 +1,17 @@
 package event
 
-import "time"
+import (
+	"context"
+	"time"
+
+	"github.com/perocha/order-processing/pkg/domain/order"
+)
 
 type Event struct {
-	Type      string
-	EventID   string
-	Timestamp time.Time
+	Type         string
+	EventID      string
+	Timestamp    time.Time
+	OrderPayload order.Order
 }
 
 // Convert Event struct into a map[string]string
@@ -18,5 +24,5 @@ func (e *Event) ToMap() map[string]string {
 }
 
 type EventProcessor interface {
-	ProcessEvent(event Event) error
+	ProcessEvent(ctx context.Context, event Event) error
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs/checkpoints"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/container"
 
-	"github.com/perocha/order-processing/pkg/domain/order"
+	"github.com/perocha/order-processing/pkg/domain/event"
 	"github.com/perocha/order-processing/pkg/infrastructure/telemetry"
 )
 
@@ -67,7 +67,7 @@ func EventHubAdapterInit(ctx context.Context, eventHubConnectionString, eventHub
 	return adapter, nil
 }
 
-func (a *EventHubAdapterImpl) StartListening(ctx context.Context, eventChannel chan order.MyEvent) error {
+func (a *EventHubAdapterImpl) StartListening(ctx context.Context, eventChannel chan event.Event) error {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
 
 	// Run all partition clients
@@ -84,7 +84,7 @@ func (a *EventHubAdapterImpl) StartListening(ctx context.Context, eventChannel c
 	return nil
 }
 
-func (a *EventHubAdapterImpl) dispatchPartitionClients(ctx context.Context, processor *azeventhubs.Processor, eventChannel chan order.MyEvent) {
+func (a *EventHubAdapterImpl) dispatchPartitionClients(ctx context.Context, processor *azeventhubs.Processor, eventChannel chan event.Event) {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
 
 	for {
@@ -112,7 +112,7 @@ func (a *EventHubAdapterImpl) dispatchPartitionClients(ctx context.Context, proc
 }
 
 // ProcessEvents implements the logic that is executed when events are received from the event hub
-func (a *EventHubAdapterImpl) listenEvents(ctx context.Context, partitionClient *azeventhubs.ProcessorPartitionClient, eventChannel chan order.MyEvent) error {
+func (a *EventHubAdapterImpl) listenEvents(ctx context.Context, partitionClient *azeventhubs.ProcessorPartitionClient, eventChannel chan event.Event) error {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
 
 	defer closePartitionResources(partitionClient)
@@ -139,7 +139,7 @@ func (a *EventHubAdapterImpl) listenEvents(ctx context.Context, partitionClient 
 
 			// Events received!! Process the message
 			//			msg := event.Event{}
-			msg := order.MyEvent{}
+			msg := event.Event{}
 			// Unmarshal the event body into the message struct
 			err := json.Unmarshal(eventItem.Body, &msg)
 			if err != nil {
@@ -188,7 +188,7 @@ func (a *EventHubAdapterImpl) StopListening(ctx context.Context) error {
 	return nil
 }
 
-func (a *EventHubAdapterImpl) ProcessEvent(ctx context.Context, event order.MyEvent) error {
+func (a *EventHubAdapterImpl) ProcessEvent(ctx context.Context, event event.Event) error {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
 
 	telemetryClient.TrackTrace(ctx, "StopListening::Stopping event hub listener", telemetry.Information, nil, true)

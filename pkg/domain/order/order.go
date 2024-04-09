@@ -21,14 +21,7 @@ func (e *Order) ToMap() map[string]string {
 }
 
 // Order methods
-type OrderRepository interface {
-	CreateOrder(ctx context.Context, order Order) error
-	UpdateOrder(ctx context.Context, order Order) error
-	DeleteOrder(ctx context.Context, orderID string) error
-}
-
-// Order methods
-type RenewOrderProcessor interface {
+type OrderProcessor interface {
 	CreateOrder(ctx context.Context, order Order) error
 	UpdateOrder(ctx context.Context, order Order) error
 	DeleteOrder(ctx context.Context, orderID string) error
