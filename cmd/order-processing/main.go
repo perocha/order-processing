@@ -11,7 +11,9 @@ import (
 	"github.com/perocha/order-processing/pkg/appcontext"
 	"github.com/perocha/order-processing/pkg/config"
 	"github.com/perocha/order-processing/pkg/infrastructure/adapter/database/cosmosdb"
+	"github.com/perocha/order-processing/pkg/infrastructure/adapter/messaging/eventhub"
 	"github.com/perocha/order-processing/pkg/infrastructure/telemetry"
+	"github.com/perocha/order-processing/pkg/service"
 )
 
 func main() {
@@ -40,11 +42,6 @@ func main() {
 		panic("Failed to initialize CosmosDB repository")
 	}
 	telemetryClient.TrackTrace(ctx, "Main::CosmosDB repository initialized", telemetry.Information, nil, true)
-
-	// Start the orchestrator
-
-	// Initialize the EventHub adapter
-	//	eventHubAdapter, err := eventhub.EventHubAdapterInit(ctx, cfg.EventHubConnectionString, cfg.EventHubName, cfg.CheckpointStoreContainerName, cfg.CheckpointStoreConnectionString)
 
 	// Create a channel to listen for termination signals
 	signals := make(chan os.Signal, 1)

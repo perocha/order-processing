@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/perocha/order-processing/pkg/domain/event"
+	"github.com/perocha/order-processing/pkg/infrastructure/adapter/messaging"
 )
 
 // EventProcessor is an interface for processing incoming events.
@@ -14,10 +15,11 @@ type EventProcessor interface {
 
 // EventProcessorImpl is a struct implementing the EventProcessor interface.
 type EventProcessorImpl struct {
+	messagingClient messaging.MessagingSystem
 }
 
 // NewEventProcessor creates a new instance of EventProcessorImpl.
-func NewEventProcessor() *EventProcessorImpl {
+func NewEventProcessor(messagingSystem messaging.MessagingSystem) *EventProcessorImpl {
 	// Add any necessary initialization logic
 	return &EventProcessorImpl{}
 }

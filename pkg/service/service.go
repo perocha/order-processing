@@ -1,6 +1,8 @@
 package service
 
 import (
+	"github.com/perocha/order-processing/pkg/infrastructure/adapter/database"
+	"github.com/perocha/order-processing/pkg/infrastructure/adapter/messaging"
 	"github.com/perocha/order-processing/pkg/service/eventprocessor"
 	"github.com/perocha/order-processing/pkg/service/orderservice"
 )
@@ -18,11 +20,10 @@ type ServiceImpl struct {
 }
 
 // NewService creates a new instance of ServiceImpl.
-func NewService(
-	eventProcessor eventprocessor.EventProcessor,
-	orderService orderservice.OrderService,
-) *ServiceImpl {
-	// Add any necessary initialization logic
+func NewService(messagingSystem messaging.MessagingSystem, orderRepository database.OrderRepository) *ServiceImpl {
+	eventProcessor := eventprocessor.NewEventProcessor(messagingSystem)
+	orderService := orderservice.NewOrderService(orderRepository)
+
 	return &ServiceImpl{
 		EventProcessor: eventProcessor,
 		OrderService:   orderService,
