@@ -33,6 +33,8 @@ func (os *OrderServiceImpl) CreateOrder(ctx context.Context, order order.Order) 
 	// Implement the logic to create an order
 	// Use orderRepo to interact with the storage system
 	log.Printf("Creating order: %v", order)
+
+	os.orderRepo.CreateOrder(ctx, order)
 	return nil
 }
 

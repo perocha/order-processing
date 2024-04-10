@@ -11,16 +11,9 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs/checkpoints"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/container"
 
-	"github.com/perocha/order-processing/pkg/domain/event"
+	"github.com/perocha/order-processing/pkg/infrastructure/adapter/messaging"
 	"github.com/perocha/order-processing/pkg/infrastructure/telemetry"
 )
-
-/*
-type EventHubAdapter struct {
-	eventProcessor   event.EventConsumer
-	eventhubConsumer *azeventhubs.Processor
-}
-*/
 
 type EventHubAdapterImpl struct {
 	ehProcessor      *azeventhubs.Processor
@@ -67,22 +60,90 @@ func EventHubAdapterInit(ctx context.Context, eventHubConnectionString, eventHub
 	return adapter, nil
 }
 
-func (a *EventHubAdapterImpl) StartListening(ctx context.Context, eventChannel chan event.Event) error {
-	telemetryClient := telemetry.GetTelemetryClient(ctx)
+func (a *EventHubAdapterImpl) Subscribe(ctx context.Context) (<-chan messaging.Message, error) {
+	eventChannel := make(chan messaging.Message)
 
 	// Run all partition clients
 	go a.dispatchPartitionClients(ctx, a.ehProcessor, eventChannel)
 
-	processorCtx, processorCancel := context.WithCancel(context.TODO())
-	defer processorCancel()
+	return eventChannel, nil
+}
 
-	if err := a.ehProcessor.Run(processorCtx); err != nil {
-		telemetryClient.TrackException(ctx, "ConsumerInit::Error processor run", err, telemetry.Critical, nil, true)
-		return err
+func (a *EventHubAdapterImpl) dispatchPartitionClients(ctx context.Context, processor *azeventhubs.Processor, eventChannel chan messaging.Message) {
+	for {
+		// Get the next partition client
+		partitionClient := processor.NextPartitionClient(context.TODO())
+
+		if partitionClient == nil {
+			// No more partition clients to process
+			break
+		}
+
+		go func() {
+			// Process events for the partition client
+			if err := a.listenEvents(ctx, partitionClient, eventChannel); err != nil {
+				log.Printf("Error processing events: %v", err)
+			}
+		}()
 	}
+}
 
+func (a *EventHubAdapterImpl) listenEvents(ctx context.Context, partitionClient *azeventhubs.ProcessorPartitionClient, eventChannel chan messaging.Message) error {
+	for {
+		// Receive events from the partition client with a timeout of 20 seconds
+		timeout := time.Second * 20
+		receiveCtx, receiveCtxCancel := context.WithTimeout(context.TODO(), timeout)
+		defer receiveCtxCancel()
+
+		// Limit the wait for a number of events to receive
+		limitEvents := 10
+		events, err := partitionClient.ReceiveEvents(receiveCtx, limitEvents, nil)
+
+		if err != nil && !errors.Is(err, context.DeadlineExceeded) {
+			return err
+		}
+
+		for _, eventItem := range events {
+			// Events received!! Process the message
+			msg := messaging.Message{}
+			// Unmarshal the event body into the message struct
+			err := json.Unmarshal(eventItem.Body, &msg)
+			if err != nil {
+				// Error unmarshalling the event body, discard the message
+				log.Printf("Error unmarshalling event body: %v", err)
+				continue
+			}
+
+			// Send the message to the event channel
+			eventChannel <- msg
+		}
+
+		if len(events) != 0 {
+			if err := partitionClient.UpdateCheckpoint(context.TODO(), events[len(events)-1], nil); err != nil {
+				log.Printf("Error updating checkpoint: %v", err)
+				return err
+			}
+		}
+	}
+}
+
+func (a *EventHubAdapterImpl) Init(ctx context.Context) error {
 	return nil
 }
+
+func (a *EventHubAdapterImpl) Publish(ctx context.Context, message messaging.Message) error {
+	return nil
+}
+
+func (a *EventHubAdapterImpl) Unsubscribe(ctx context.Context, topic string) error {
+	return nil
+}
+
+func (a *EventHubAdapterImpl) Close(ctx context.Context) error {
+	return nil
+}
+
+/*
 
 func (a *EventHubAdapterImpl) dispatchPartitionClients(ctx context.Context, processor *azeventhubs.Processor, eventChannel chan event.Event) {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
@@ -151,7 +212,6 @@ func (a *EventHubAdapterImpl) listenEvents(ctx context.Context, partitionClient 
 				telemetryClient.TrackTrace(ctx, "processEvents::PROCESS MESSAGE", telemetry.Information, properties, true)
 				// Send the message to the event channel
 				eventChannel <- msg
-				/*
 					// Process the message
 					err = processEvent.ProcessEvent(ctx, msg)
 					if err != nil {
@@ -159,7 +219,6 @@ func (a *EventHubAdapterImpl) listenEvents(ctx context.Context, partitionClient 
 						telemetryClient.TrackTrace(ctx, "processEvents::Error processing message", telemetry.Error, nil, true)
 						//return err
 					}
-				*/
 			}
 
 			log.Printf("eventhub-subscriber::PartitionID::%s::Events received %v\n", partitionClient.PartitionID(), string(eventItem.Body))
