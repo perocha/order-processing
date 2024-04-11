@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log"
 
 	"github.com/perocha/order-processing/pkg/domain/event"
 	"github.com/perocha/order-processing/pkg/infrastructure/adapter/database"
@@ -10,26 +11,21 @@ import (
 	"github.com/perocha/order-processing/pkg/service/orderservice"
 )
 
-// Service aggregates all service interfaces.
-type Service interface {
-	// Add any necessary methods for the service
-}
-
 // ServiceImpl is a struct implementing the Service interface.
 type ServiceImpl struct {
-	eventprocessor.EventProcessor
-	orderservice.OrderService
+	eventprocessor eventprocessor.EventProcessor
+	orderservice   orderservice.OrderService
 }
 
 // NewService creates a new instance of ServiceImpl.
 // func NewService(messagingSystem messaging.MessagingSystem, orderRepository database.OrderRepository) *ServiceImpl {
 func NewService(ctx context.Context, messagingSystem messaging.MessagingSystem, orderRepository database.OrderRepository) *ServiceImpl {
-	//	eventProcessor := eventprocessor.NewEventProcessor(messagingSystem)
+	eventProcessor := eventprocessor.NewEventProcessor(messagingSystem)
 	orderService := orderservice.NewOrderService(orderRepository)
 
 	return &ServiceImpl{
-		//		EventProcessor: eventProcessor,
-		OrderService: orderService,
+		eventprocessor: eventProcessor,
+		orderservice:   orderService,
 	}
 }
 
@@ -42,7 +38,7 @@ func (s *ServiceImpl) ProcessEvent(ctx context.Context, event event.Event) error
 		// Extract order information from the event
 		// Call the OrderService to create the order
 		// Publish a message indicating successful operation if needed
-		err := s.OrderService.CreateOrder(ctx, event.OrderPayload)
+		err := s.orderservice.CreateOrder(ctx, event.OrderPayload)
 		if err != nil {
 			return err
 		}
@@ -56,6 +52,19 @@ func (s *ServiceImpl) ProcessEvent(ctx context.Context, event event.Event) error
 		// Publish a message indicating successful operation if needed
 	default:
 		// Handle unsupported event types or errors
+	}
+
+	return nil
+}
+
+// Starts listening for incoming events.
+func (s *ServiceImpl) StartListening(ctx context.Context) error {
+	err := s.eventprocessor.StartListening(ctx)
+
+	if err != nil {
+		// Handle error
+		log.Println("Error starting event listener")
+		return err
 	}
 
 	return nil

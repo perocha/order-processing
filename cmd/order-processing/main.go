@@ -64,6 +64,8 @@ func main() {
 	}
 	serviceInstance.ProcessEvent(ctx, test)
 
+	serviceInstance.StartListening(ctx)
+
 	log.Printf("Main::Service initialized %v\n", serviceInstance)
 	log.Printf("Main::EventHub initialized %v\n", eventHubInstance)
 
