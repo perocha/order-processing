@@ -162,15 +162,7 @@ func (a *EventHubAdapterImpl) processEventsForPartition(ctx context.Context, par
 	}
 }
 
-func (a *EventHubAdapterImpl) Init(ctx context.Context) error {
-	return nil
-}
-
 func (a *EventHubAdapterImpl) Publish(ctx context.Context, message event.Event) error {
-	return nil
-}
-
-func (a *EventHubAdapterImpl) Unsubscribe(ctx context.Context, topic string) error {
 	return nil
 }
 
@@ -178,6 +170,9 @@ func (a *EventHubAdapterImpl) Close(ctx context.Context) error {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
 
 	telemetryClient.TrackTrace(ctx, "EventHubAdapter::Close::Stopping event hub listener", telemetry.Information, nil, true)
+
+	// Close the consumer client
+	a.ehConsumerClient.Close(context.TODO())
 
 	return nil
 }

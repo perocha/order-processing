@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-processing-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-processing
+  template:
+    metadata:
+      labels:
+        app: order-processing
+    spec:
+      containers:
+      - name: order-processing
+        image: perocha.azurecr.io/order-processing:latest
+        restartPolicy: Never
+        env:
+        - name: APPCONFIGURATION_CONNECTION_STRING
+          valueFrom:
+            secretKeyRef:
+              name: appconfiguration
+              key: appconfigurationconnectionstring
