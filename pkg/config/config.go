@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azappconfig"
+	"gopkg.in/yaml.v2"
 )
 
 type Config struct {
@@ -20,6 +21,10 @@ type Config struct {
 	client                           *azappconfig.Client
 }
 
+type yamlConfig struct {
+	AppConfigurationConnectionString string `yaml:"APPCONFIGURATION_CONNECTION_STRING"`
+}
+
 // InitializeConfig creates a new instance of Config with values loaded from environment variables
 func InitializeConfig() *Config {
 	cfg := &Config{}
@@ -27,8 +32,18 @@ func InitializeConfig() *Config {
 	// Create a new App Configuration client
 	connectionString := os.Getenv("APPCONFIGURATION_CONNECTION_STRING")
 	if connectionString == "" {
-		log.Println("Error: APPCONFIGURATION_CONNECTION_STRING environment variable is not set")
-		return nil
+		log.Println("Error: APPCONFIGURATION_CONNECTION_STRING environment variable is not set, loading from config.yaml file")
+		data, err := os.ReadFile("config.yaml")
+		if err != nil {
+			log.Fatalf("Error: Failed to read config.yaml file: %v", err)
+		}
+
+		var yamlCfg yamlConfig
+		err = yaml.Unmarshal(data, &yamlCfg)
+		if err != nil {
+			log.Fatalf("Error: Failed to unmarshal config.yaml file: %v", err)
+		}
+		connectionString = yamlCfg.AppConfigurationConnectionString
 	}
 
 	var err error

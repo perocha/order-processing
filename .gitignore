@@ -22,3 +22,6 @@ go.work
 
 # Ignore VS Code
 .vscode/*
+
+# Ignore local config files
+config.yaml
