@@ -64,7 +64,7 @@ func EventHubAdapterInit(ctx context.Context, eventHubConnectionString, eventHub
 	return adapter, nil
 }
 
-func (a *EventHubAdapterImpl) Subscribe(ctx context.Context) (<-chan messaging.Message, error) {
+func (a *EventHubAdapterImpl) Subscribe(ctx context.Context) (<-chan messaging.Message, context.CancelFunc, error) {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
 	eventChannel := make(chan messaging.Message)
 
@@ -72,14 +72,16 @@ func (a *EventHubAdapterImpl) Subscribe(ctx context.Context) (<-chan messaging.M
 	go a.dispatchPartitionClients(ctx, eventChannel)
 
 	processorCtx, processorCancel := context.WithCancel(context.TODO())
-	defer processorCancel()
 
-	if err := a.ehProcessor.Run(processorCtx); err != nil {
-		telemetryClient.TrackException(ctx, "ConsumerInit::Error processor run", err, telemetry.Critical, nil, true)
-		return nil, err
-	}
+	go func() {
+		if err := a.ehProcessor.Run(processorCtx); err != nil {
+			telemetryClient.TrackException(ctx, "ConsumerInit::Error processor run", err, telemetry.Critical, nil, true)
+			processorCancel()
+			a.ehConsumerClient.Close(context.TODO())
+		}
+	}()
 
-	return eventChannel, nil
+	return eventChannel, processorCancel, nil
 }
 
 func (a *EventHubAdapterImpl) dispatchPartitionClients(ctx context.Context, eventChannel chan messaging.Message) {

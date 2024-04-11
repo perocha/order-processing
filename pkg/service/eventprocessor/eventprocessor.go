@@ -40,7 +40,7 @@ func (ep *EventProcessorImpl) StartListening(ctx context.Context) error {
 	// Implement the logic to start listening for incoming events
 	log.Println("Listening for incoming events")
 
-	channel, err := ep.messagingClient.Subscribe(ctx)
+	channel, cancelCtx, err := ep.messagingClient.Subscribe(ctx)
 	if err != nil {
 		log.Printf("Failed to subscribe to events: %s", err.Error())
 		return err
@@ -54,12 +54,11 @@ func (ep *EventProcessorImpl) StartListening(ctx context.Context) error {
 			ep.ProcessEvent(ctx, event)
 		case <-ctx.Done():
 			log.Println("Context canceled. Stopping event listener.")
+			cancelCtx()
 			return nil
 		case <-time.After(1 * time.Minute):
 			// Do nothing
 			log.Println("Waiting...")
 		}
 	}
-
-	return nil
 }
