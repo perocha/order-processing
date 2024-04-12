@@ -7,10 +7,13 @@ import (
 	"log"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs/checkpoints"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/container"
 
+	"github.com/perocha/order-processing/pkg/appcontext"
 	"github.com/perocha/order-processing/pkg/domain/event"
 	"github.com/perocha/order-processing/pkg/infrastructure/telemetry"
 )
@@ -20,6 +23,7 @@ type EventHubAdapterImpl struct {
 	ehConsumerClient *azeventhubs.ConsumerClient
 	checkpointStore  *checkpoints.BlobStore
 	checkClient      *container.Client
+	eventHubName     string
 }
 
 // Initializes a new EventHubAdapter
@@ -59,6 +63,7 @@ func EventHubAdapterInit(ctx context.Context, eventHubConnectionString, eventHub
 		ehConsumerClient: consumerClient,
 		checkpointStore:  checkpointStore,
 		checkClient:      checkClient,
+		eventHubName:     eventHubName,
 	}
 
 	return adapter, nil
@@ -130,10 +135,14 @@ func (a *EventHubAdapterImpl) processEventsForPartition(ctx context.Context, par
 		}
 
 		// Uncomment the following line to verify that the consumer is trying to receive events
-		log.Printf("EventHubAdapter::processEventsForPartition::PartitionID=%s::Processing %d event(s)\n", partitionClient.PartitionID(), len(events))
+		// log.Printf("EventHubAdapter::processEventsForPartition::PartitionID=%s::Processing %d event(s)\n", partitionClient.PartitionID(), len(events))
 
 		for _, eventItem := range events {
 			log.Println("EventHubAdapter::processEventsForPartition::Message received: ", string(eventItem.Body))
+			// Track the current time to log the telemetry and create a new operation uuid
+			startTime := time.Now()
+			operationID := uuid.New().String()
+			ctx := context.WithValue(context.Background(), appcontext.OperationIDKeyContextKey, operationID)
 
 			// Events received!! Process the message
 			msg := event.Event{}
@@ -149,8 +158,9 @@ func (a *EventHubAdapterImpl) processEventsForPartition(ctx context.Context, par
 				eventChannel <- msg
 			}
 
+			telemetryClient.TrackDependency(ctx, "EventHubAdapter::processEventsForPartition::Process message", "name", "EventHub", a.eventHubName, true, startTime, time.Now(), nil, true)
 			log.Printf("EventHubAdapter::processEventsForPartition::PartitionID::%s::Events received %v\n", partitionClient.PartitionID(), string(eventItem.Body))
-			log.Printf("EventHubAdapter::processEventsForPartition::Offset: %d Sequence number: %d MessageID: %s\n", eventItem.Offset, eventItem.SequenceNumber, *eventItem.MessageID)
+			// log.Printf("EventHubAdapter::processEventsForPartition::Offset: %d Sequence number: %d MessageID: %s\n", eventItem.Offset, eventItem.SequenceNumber, *eventItem.MessageID)
 		}
 
 		if len(events) != 0 {
