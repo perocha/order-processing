@@ -138,11 +138,11 @@ func (a *EventHubAdapterImpl) processEventsForPartition(ctx context.Context, par
 		// log.Printf("EventHubAdapter::processEventsForPartition::PartitionID=%s::Processing %d event(s)\n", partitionClient.PartitionID(), len(events))
 
 		for _, eventItem := range events {
-			log.Println("EventHubAdapter::processEventsForPartition::Message received: ", string(eventItem.Body))
-			// Track the current time to log the telemetry and create a new operation uuid
+			// Track the current time to log the telemetry and create a new operation uuid (add to the context)
 			startTime := time.Now()
 			operationID := uuid.New().String()
 			ctx := context.WithValue(context.Background(), appcontext.OperationIDKeyContextKey, operationID)
+			log.Printf("EventHubAdapter::processEventsForPartition::OperationID=%s::Message received=%s\n", operationID, string(eventItem.Body))
 
 			// Events received!! Process the message
 			msg := event.Event{}

@@ -58,7 +58,13 @@ func (t *Telemetry) TrackTrace(ctx context.Context, message string, severity Sev
 
 	// Create the log message
 	txtMessage := fmt.Sprintf("%s::%s", SERVICE_NAME, message)
-	consoleMessage := fmt.Sprintf("%s::Severity=%v", txtMessage, severity)
+	// Retrieve the operationID from the context and add it to the log message
+	operationID, ok := ctx.Value(appcontext.OperationIDKeyContextKey).(string)
+	if ok && operationID != "" {
+		// Add operationID to the console message
+		txtMessage = fmt.Sprintf("%s::OperationID=%s", txtMessage, operationID)
+	}
+	consoleMessage := fmt.Sprintf("%s::Sev=%v", txtMessage, severity)
 	if len(properties) > 0 {
 		consoleMessage = fmt.Sprintf("%s::Properties=%v", consoleMessage, properties)
 	}
@@ -74,12 +80,9 @@ func (t *Telemetry) TrackTrace(ctx context.Context, message string, severity Sev
 		trace.Properties[k] = v
 	}
 
-	// Get the operationID from the context, if available to set the parent id in App Insights
-	if operationID, ok := ctx.Value(appcontext.OperationIDKeyContextKey).(string); ok {
-		// Set parent id
-		if operationID != "" {
-			trace.Tags.Operation().SetParentId(operationID)
-		}
+	// Set parent id, using the operationID from the context
+	if operationID != "" {
+		trace.Tags.Operation().SetParentId(operationID)
 	}
 
 	// Send the trace to App Insights
@@ -94,7 +97,7 @@ func (t *Telemetry) TrackException(ctx context.Context, message string, err erro
 
 	// Create the log message
 	txtMessage := fmt.Sprintf("%s::%s", SERVICE_NAME, message)
-	consoleMessage := fmt.Sprintf("%s::Error=%s::Severity=%v", txtMessage, err.Error(), severity)
+	consoleMessage := fmt.Sprintf("%s::Error=%s::Sev=%v", txtMessage, err.Error(), severity)
 	if len(properties) > 0 {
 		consoleMessage = fmt.Sprintf("%s::Properties=%v", consoleMessage, properties)
 	}
