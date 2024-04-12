@@ -16,6 +16,10 @@ import (
 	"github.com/perocha/order-processing/pkg/service"
 )
 
+const (
+	SERVICE_NAME = "OrderProcessing"
+)
+
 func main() {
 	// Initialize configuration
 	cfg := config.InitializeConfig()
@@ -26,7 +30,7 @@ func main() {
 	}
 
 	// Initialize App Insights
-	telemetryClient, err := telemetry.Initialize(cfg.AppInsightsInstrumentationKey)
+	telemetryClient, err := telemetry.Initialize(cfg.AppInsightsInstrumentationKey, SERVICE_NAME)
 	if err != nil {
 		log.Printf("Main::Fatal error::Failed to initialize App Insights %s\n", err.Error())
 		panic("Main::Failed to initialize App Insights")

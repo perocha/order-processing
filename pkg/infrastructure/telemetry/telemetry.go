@@ -35,13 +35,16 @@ const (
 )
 
 // Initializes a new telemetry client
-func Initialize(instrumentationKey string) (*Telemetry, error) {
+func Initialize(instrumentationKey string, serviceName string) (*Telemetry, error) {
 	if instrumentationKey == "" {
 		return nil, errors.New("app insights instrumentation key not initialized")
 	}
 
 	// Initialize telemetry client
 	client := appinsights.NewTelemetryClient(instrumentationKey)
+
+	// Set the role name
+	client.Context().Tags.Cloud().SetRole(serviceName)
 
 	return &Telemetry{client: client}, nil
 }
