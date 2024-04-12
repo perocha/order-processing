@@ -15,6 +15,7 @@ import (
 
 	"github.com/perocha/order-processing/pkg/appcontext"
 	"github.com/perocha/order-processing/pkg/domain/event"
+	"github.com/perocha/order-processing/pkg/infrastructure/adapter/messaging"
 	"github.com/perocha/order-processing/pkg/infrastructure/telemetry"
 )
 
@@ -69,9 +70,9 @@ func EventHubAdapterInit(ctx context.Context, eventHubConnectionString, eventHub
 	return adapter, nil
 }
 
-func (a *EventHubAdapterImpl) Subscribe(ctx context.Context) (<-chan event.Event, context.CancelFunc, error) {
+func (a *EventHubAdapterImpl) Subscribe(ctx context.Context) (<-chan messaging.EventWithContext, context.CancelFunc, error) {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
-	eventChannel := make(chan event.Event)
+	eventChannel := make(chan messaging.EventWithContext)
 
 	// Run all partition clients
 	go a.dispatchPartitionClients(ctx, eventChannel)
@@ -89,7 +90,7 @@ func (a *EventHubAdapterImpl) Subscribe(ctx context.Context) (<-chan event.Event
 	return eventChannel, processorCancel, nil
 }
 
-func (a *EventHubAdapterImpl) dispatchPartitionClients(ctx context.Context, eventChannel chan event.Event) {
+func (a *EventHubAdapterImpl) dispatchPartitionClients(ctx context.Context, eventChannel chan messaging.EventWithContext) {
 	for {
 		telemetryClient := telemetry.GetTelemetryClient(ctx)
 
@@ -117,7 +118,7 @@ func (a *EventHubAdapterImpl) dispatchPartitionClients(ctx context.Context, even
 }
 
 // ProcessEvents implements the logic that is executed when events are received from the event hub
-func (a *EventHubAdapterImpl) processEventsForPartition(ctx context.Context, partitionClient *azeventhubs.ProcessorPartitionClient, eventChannel chan event.Event) error {
+func (a *EventHubAdapterImpl) processEventsForPartition(ctx context.Context, partitionClient *azeventhubs.ProcessorPartitionClient, eventChannel chan messaging.EventWithContext) error {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
 
 	for {
@@ -155,7 +156,7 @@ func (a *EventHubAdapterImpl) processEventsForPartition(ctx context.Context, par
 			} else {
 				telemetryClient.TrackTrace(ctx, "EventHubAdapter::processEventsForPartition::PROCESS MESSAGE", telemetry.Information, nil, true)
 				// Send the message to the event channel
-				eventChannel <- msg
+				eventChannel <- messaging.EventWithContext{Ctx: ctx, Msg: msg}
 			}
 
 			telemetryClient.TrackDependency(ctx, "EventHubAdapter::processEventsForPartition::Process message", "name", "EventHub", a.eventHubName, true, startTime, time.Now(), nil, true)
