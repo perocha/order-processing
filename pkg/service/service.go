@@ -49,7 +49,7 @@ func (s *ServiceImpl) Start(ctx context.Context, signals <-chan os.Signal) error
 		case message := <-channel:
 			// Update the context with the operation ID
 			ctx = context.WithValue(ctx, appcontext.OperationIDKeyContextKey, message.OperationID)
-			// New message received in channel, with context and event. Process the event.
+			// New message received in channel. Process the event.
 			properties := message.Event.ToMap()
 			telemetryClient.TrackTrace(ctx, "services::Start::Received message", telemetry.Information, properties, true)
 			s.processEvent(ctx, message.Event)
@@ -76,19 +76,20 @@ func (s *ServiceImpl) Stop(ctx context.Context) {
 // ProcessEvent processes an incoming event.
 func (s *ServiceImpl) processEvent(ctx context.Context, event event.Event) error {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
-	properties := event.ToMap()
-	telemetryClient.TrackTrace(ctx, "services::processEvent::Processing event", telemetry.Information, properties, true)
 
 	// Based on the event type, determine the action to be taken
 	switch event.Type {
 	case "create_order":
-		// Extract order information from the event
 		// Call the OrderService to create the order
-		// Publish a message indicating successful operation if needed
 		err := s.createOrder(ctx, event.OrderPayload)
 		if err != nil {
+			telemetryClient.TrackException(ctx, "services::processEvent::Error creating order", err, telemetry.Error, nil, true)
 			return err
 		}
+
+		// Publish a message indicating successful operation if needed
+
+		telemetryClient.TrackTrace(ctx, "services::processEvent::Order created", telemetry.Information, nil, true)
 	case "delete_order":
 		// Extract order ID from the event
 		// Call the OrderService to delete the order
