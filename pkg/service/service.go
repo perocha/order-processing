@@ -46,9 +46,10 @@ func (s *ServiceImpl) Start(ctx context.Context, signals <-chan os.Signal) error
 	for {
 		select {
 		case message := <-channel:
-			properties := message.ToMap()
-			telemetryClient.TrackTrace(ctx, "services::Start::Received message", telemetry.Information, properties, true)
-			s.processEvent(ctx, message)
+			// New message received in channel, with context and event. Process the event.
+			properties := message.Msg.ToMap()
+			telemetryClient.TrackTrace(message.Ctx, "services::Start::Received message", telemetry.Information, properties, true)
+			s.processEvent(message.Ctx, message.Msg)
 		case <-ctx.Done():
 			telemetryClient.TrackTrace(ctx, "services::Start::Context canceled. Stopping event listener.", telemetry.Information, nil, true)
 			cancelCtx()
