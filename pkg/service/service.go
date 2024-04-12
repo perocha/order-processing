@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 
+	"github.com/perocha/order-processing/pkg/appcontext"
 	"github.com/perocha/order-processing/pkg/domain/event"
 	"github.com/perocha/order-processing/pkg/domain/order"
 	"github.com/perocha/order-processing/pkg/infrastructure/adapter/database"
@@ -46,10 +47,12 @@ func (s *ServiceImpl) Start(ctx context.Context, signals <-chan os.Signal) error
 	for {
 		select {
 		case message := <-channel:
+			// Update the context with the operation ID
+			ctx := context.WithValue(context.Background(), appcontext.OperationIDKeyContextKey, message.OperationID)
 			// New message received in channel, with context and event. Process the event.
-			properties := message.Msg.ToMap()
-			telemetryClient.TrackTrace(message.Ctx, "services::Start::Received message", telemetry.Information, properties, true)
-			s.processEvent(message.Ctx, message.Msg)
+			properties := message.Event.ToMap()
+			telemetryClient.TrackTrace(ctx, "services::Start::Received message", telemetry.Information, properties, true)
+			s.processEvent(ctx, message.Event)
 		case <-ctx.Done():
 			telemetryClient.TrackTrace(ctx, "services::Start::Context canceled. Stopping event listener.", telemetry.Information, nil, true)
 			cancelCtx()
