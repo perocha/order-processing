@@ -48,7 +48,7 @@ func (s *ServiceImpl) Start(ctx context.Context, signals <-chan os.Signal) error
 		select {
 		case message := <-channel:
 			// Update the context with the operation ID
-			ctx = context.WithValue(context.Background(), appcontext.OperationIDKeyContextKey, message.OperationID)
+			ctx = context.WithValue(ctx, appcontext.OperationIDKeyContextKey, message.OperationID)
 			// New message received in channel, with context and event. Process the event.
 			properties := message.Event.ToMap()
 			telemetryClient.TrackTrace(ctx, "services::Start::Received message", telemetry.Information, properties, true)
