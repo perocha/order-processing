@@ -58,7 +58,7 @@ func main() {
 
 	// Initialize service
 	serviceInstance := service.Initialize(ctx, eventHubInstance, orderRepository)
-	serviceInstance.Start(ctx, signals)
+	go serviceInstance.Start(ctx, signals)
 
 	telemetryClient.TrackTrace(ctx, "Main::All services started", telemetry.Information, nil, true)
 
