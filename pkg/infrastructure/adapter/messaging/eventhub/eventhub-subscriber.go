@@ -70,9 +70,9 @@ func EventHubAdapterInit(ctx context.Context, eventHubConnectionString, eventHub
 	return adapter, nil
 }
 
-func (a *EventHubAdapterImpl) Subscribe(ctx context.Context) (<-chan messaging.EventWithOperationID, context.CancelFunc, error) {
+func (a *EventHubAdapterImpl) Subscribe(ctx context.Context) (<-chan messaging.Message, context.CancelFunc, error) {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
-	eventChannel := make(chan messaging.EventWithOperationID)
+	eventChannel := make(chan messaging.Message)
 
 	// Run all partition clients
 	go a.dispatchPartitionClients(ctx, eventChannel)
@@ -90,7 +90,7 @@ func (a *EventHubAdapterImpl) Subscribe(ctx context.Context) (<-chan messaging.E
 	return eventChannel, processorCancel, nil
 }
 
-func (a *EventHubAdapterImpl) dispatchPartitionClients(ctx context.Context, eventChannel chan messaging.EventWithOperationID) {
+func (a *EventHubAdapterImpl) dispatchPartitionClients(ctx context.Context, eventChannel chan messaging.Message) {
 	for {
 		telemetryClient := telemetry.GetTelemetryClient(ctx)
 
@@ -111,15 +111,21 @@ func (a *EventHubAdapterImpl) dispatchPartitionClients(ctx context.Context, even
 					"PartitionID": partitionClient.PartitionID(),
 				}
 				telemetryClient.TrackException(ctx, "EventHubAdapter::dispatchPartitionClients::Error processing events", err, telemetry.Error, properties, true)
-				panic(err)
+				//panic(err)
+				return
 			}
 		}()
 	}
 }
 
 // ProcessEvents implements the logic that is executed when events are received from the event hub
-func (a *EventHubAdapterImpl) processEventsForPartition(ctx context.Context, partitionClient *azeventhubs.ProcessorPartitionClient, eventChannel chan messaging.EventWithOperationID) error {
+func (a *EventHubAdapterImpl) processEventsForPartition(ctx context.Context, partitionClient *azeventhubs.ProcessorPartitionClient, eventChannel chan messaging.Message) error {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
+
+	// Defer the shutdown of the partition resources
+	defer func() {
+		shutdownPartitionResources(ctx, partitionClient)
+	}()
 
 	for {
 		// Receive events from the partition client with a timeout of 20 seconds
@@ -132,6 +138,7 @@ func (a *EventHubAdapterImpl) processEventsForPartition(ctx context.Context, par
 		receiveCtxCancel()
 
 		if err != nil && !errors.Is(err, context.DeadlineExceeded) {
+			telemetryClient.TrackException(ctx, "EventHubAdapter::processEventsForPartition::Error receiving events", err, telemetry.Error, nil, true)
 			return err
 		}
 
@@ -150,13 +157,19 @@ func (a *EventHubAdapterImpl) processEventsForPartition(ctx context.Context, par
 			// Unmarshal the event body into the message struct
 			err := json.Unmarshal(eventItem.Body, &msg)
 			if err != nil {
-				// Error unmarshalling the event body, discard the message
+				// Error unmarshalling the event body, send an error event to the event channel
 				telemetryClient.TrackTrace(ctx, "EventHubAdapter::processEventsForPartition::Error unmarshalling event body", telemetry.Error, nil, true)
-				//return err
+				eventChannel <- messaging.Message{
+					OperationID: operationID,
+					Error:       err,
+				}
 			} else {
 				telemetryClient.TrackTrace(ctx, "EventHubAdapter::processEventsForPartition::PROCESS MESSAGE", telemetry.Information, nil, true)
 				// Send the message to the event channel
-				eventChannel <- messaging.EventWithOperationID{OperationID: operationID, Event: msg}
+				eventChannel <- messaging.Message{
+					OperationID: operationID,
+					Event:       msg,
+					Error:       nil}
 			}
 
 			telemetryClient.TrackDependency(ctx, "EventHubAdapter::processEventsForPartition::Process message", "name", "EventHub", a.eventHubName, true, startTime, time.Now(), nil, true)
@@ -177,13 +190,22 @@ func (a *EventHubAdapterImpl) Publish(ctx context.Context, message event.Event) 
 	return nil
 }
 
+// Closes the event hub listener
 func (a *EventHubAdapterImpl) Close(ctx context.Context) error {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
-
 	telemetryClient.TrackTrace(ctx, "EventHubAdapter::Close::Stopping event hub listener", telemetry.Information, nil, true)
 
 	// Close the consumer client
 	a.ehConsumerClient.Close(context.TODO())
 
 	return nil
+}
+
+// Closes the partition client
+func shutdownPartitionResources(ctx context.Context, partitionClient *azeventhubs.ProcessorPartitionClient) {
+	telemetryClient := telemetry.GetTelemetryClient(ctx)
+	telemetryClient.TrackTrace(ctx, "EventHubAdapter::shutdownPartitionResources::Closing partition client", telemetry.Information, nil, true)
+
+	// Close the partition client
+	defer partitionClient.Close(context.TODO())
 }

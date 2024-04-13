@@ -49,17 +49,28 @@ func (s *ServiceImpl) Start(ctx context.Context, signals <-chan os.Signal) error
 		case message := <-channel:
 			// Update the context with the operation ID
 			ctx = context.WithValue(ctx, appcontext.OperationIDKeyContextKey, message.OperationID)
-			// New message received in channel. Process the event.
-			properties := message.Event.ToMap()
-			telemetryClient.TrackTrace(ctx, "services::Start::Received message", telemetry.Information, properties, true)
-			s.processEvent(ctx, message.Event)
+
+			if message.Error != nil {
+				// New message received in channel. Process the event.
+				properties := message.Event.ToMap()
+				telemetryClient.TrackTrace(ctx, "services::Start::Received message", telemetry.Information, properties, true)
+				s.processEvent(ctx, message.Event)
+			} else {
+				// Discard message but report exception
+				properties := map[string]string{
+					"Error": message.Error.Error(),
+				}
+				telemetryClient.TrackException(ctx, "services::Start::Error processing message", message.Error, telemetry.Error, properties, true)
+			}
 		case <-ctx.Done():
 			telemetryClient.TrackTrace(ctx, "services::Start::Context canceled. Stopping event listener.", telemetry.Information, nil, true)
 			cancelCtx()
+			s.messagingClient.Close(ctx)
 			return nil
 		case <-signals:
 			telemetryClient.TrackTrace(ctx, "services::Start::Received termination signal", telemetry.Information, nil, true)
 			cancelCtx()
+			s.messagingClient.Close(ctx)
 			return nil
 		}
 	}

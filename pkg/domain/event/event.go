@@ -1,7 +1,6 @@
 package event
 
 import (
-	"context"
 	"time"
 
 	"github.com/perocha/order-processing/pkg/domain/order"
@@ -21,8 +20,4 @@ func (e *Event) ToMap() map[string]string {
 		"EventID":   e.EventID,
 		"Timestamp": e.Timestamp.Format(time.RFC3339),
 	}
-}
-
-type EventProcessor interface {
-	ProcessEvent(ctx context.Context, event Event) error
 }

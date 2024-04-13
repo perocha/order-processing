@@ -68,9 +68,15 @@ func main() {
 		case <-signals:
 			telemetryClient.TrackTrace(ctx, "Main::Received termination signal", telemetry.Information, nil, true)
 			return
-		case <-time.After(1 * time.Minute):
+		case <-time.After(2 * time.Minute):
 			// Do nothing
 			log.Println("Main::Waiting for termination signal")
+			// Send termination signal to stop the service
+			signals <- syscall.SIGINT
+			// Add a delay before stopping the service
+			time.Sleep(1 * time.Minute)
+			// Stop the service
+			serviceInstance.Stop(ctx)
 		}
 	}
 }
