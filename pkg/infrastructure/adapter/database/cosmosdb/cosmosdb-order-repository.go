@@ -49,6 +49,10 @@ func (r *CosmosDBOrderRepository) CreateOrder(ctx context.Context, order order.O
 	// Create a new container
 	container, err := r.client.NewContainer("orders", "/id")
 	if err != nil {
+		properties := map[string]string{
+			"Error": err.Error(),
+		}
+		telemetryClient.TrackException(ctx, "CosmosDBOrderRepository::CreateOrder::Error creating order", err, telemetry.Error, properties, true)
 		return err
 	}
 
@@ -57,12 +61,20 @@ func (r *CosmosDBOrderRepository) CreateOrder(ctx context.Context, order order.O
 	// Convert order to json
 	orderJson, err := json.Marshal(order)
 	if err != nil {
+		properties := map[string]string{
+			"Error": err.Error(),
+		}
+		telemetryClient.TrackException(ctx, "CosmosDBOrderRepository::CreateOrder::Error creating order", err, telemetry.Error, properties, true)
 		return err
 	}
 
 	// Create an item
 	_, err = container.CreateItem(ctx, pk, orderJson, nil)
 	if err != nil {
+		properties := map[string]string{
+			"Error": err.Error(),
+		}
+		telemetryClient.TrackException(ctx, "CosmosDBOrderRepository::CreateOrder::Error creating order", err, telemetry.Error, properties, true)
 		return err
 	}
 
