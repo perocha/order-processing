@@ -17,7 +17,8 @@ type Config struct {
 	CheckpointStoreContainerName     string
 	CheckpointStoreConnectionString  string
 	AppInsightsInstrumentationKey    string
-	CosmosDBConnectionString         string
+	CosmosdbEndpoint                 string
+	CosmosdbConnectionString         string
 	client                           *azappconfig.Client
 }
 
@@ -58,7 +59,8 @@ func InitializeConfig() *Config {
 	cfg.EventHubConnectionString, _ = cfg.GetVar("EVENTHUB_CONSUMERVNEXT_CONNECTION_STRING")
 	cfg.CheckpointStoreContainerName, _ = cfg.GetVar("CHECKPOINTSTORE_CONTAINER_NAME")
 	cfg.CheckpointStoreConnectionString, _ = cfg.GetVar("CHECKPOINTSTORE_STORAGE_CONNECTION_STRING")
-	cfg.CosmosDBConnectionString, _ = cfg.GetVar("COSMOSDB_CONNECTION_STRING")
+	cfg.CosmosdbEndpoint, _ = cfg.GetVar("COSMOSDB_ENDPOINT")
+	cfg.CosmosdbConnectionString, _ = cfg.GetVar("COSMOSDB_CONNECTION_STRING")
 
 	return cfg
 }

@@ -2,12 +2,10 @@ package cosmosdb
 
 import (
 	"context"
-	"log"
-
-	"github.com/perocha/order-processing/pkg/infrastructure/telemetry"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
 	"github.com/perocha/order-processing/pkg/domain/order"
+	"github.com/perocha/order-processing/pkg/infrastructure/telemetry"
 )
 
 type CosmosDBOrderRepository struct {
@@ -15,24 +13,32 @@ type CosmosDBOrderRepository struct {
 }
 
 // Initialize CosmosDB repository using the provided connection string
-func NewCosmosDBOrderRepository(ctx context.Context, connectionString string) (*CosmosDBOrderRepository, error) {
+func NewCosmosDBOrderRepository(ctx context.Context, endPoint string, connectionString string) (*CosmosDBOrderRepository, error) {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
 
-	client, err := azcosmos.NewClientFromConnectionString(connectionString, nil)
-
-	log.Printf("CosmosDBOrderRepository::NewCosmosDBOrderRepository::Client=%v::Error=%v", client, err)
-	telemetryClient.TrackTrace(ctx, "CosmosDBOrderRepository::NewCosmosDBOrderRepository", telemetry.Information, nil, true)
-
-	return nil, nil
-	/*
-		if err != nil {
-			return nil, err
+	credential, err := azcosmos.NewKeyCredential(connectionString)
+	if err != nil {
+		properties := map[string]string{
+			"Error": err.Error(),
 		}
+		telemetryClient.TrackException(ctx, "CosmosDBOrderRepository::NewCosmosDBOrderRepository::Error creating key credential", err, telemetry.Critical, properties, true)
+		return nil, err
+	}
 
-		return &CosmosDBOrderRepository{
-			client: client,
-		}, nil
-	*/
+	client, err := azcosmos.NewClientWithKey(endPoint, credential, nil)
+	if err != nil {
+		properties := map[string]string{
+			"Error": err.Error(),
+		}
+		telemetryClient.TrackException(ctx, "CosmosDBOrderRepository::NewCosmosDBOrderRepository::Error creating client", err, telemetry.Critical, properties, true)
+		return nil, err
+	}
+
+	telemetryClient.TrackTrace(ctx, "CosmosDBOrderRepository::NewCosmosDBOrderRepository::DB client created successfully", telemetry.Information, nil, true)
+
+	return &CosmosDBOrderRepository{
+		client: client,
+	}, nil
 }
 
 // Creates a new order in CosmosDB

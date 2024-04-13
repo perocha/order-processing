@@ -17,12 +17,3 @@ func (e *Order) ToMap() map[string]string {
 		"Status":     e.Status,
 	}
 }
-
-/*
-// Order methods
-type OrderProcessor interface {
-	CreateOrder(ctx context.Context, order Order) error
-	UpdateOrder(ctx context.Context, order Order) error
-	DeleteOrder(ctx context.Context, orderID string) error
-}
-*/
