@@ -50,13 +50,13 @@ func (s *ServiceImpl) Start(ctx context.Context, signals <-chan os.Signal) error
 			// Update the context with the operation ID
 			ctx = context.WithValue(ctx, appcontext.OperationIDKeyContextKey, message.OperationID)
 
-			if message.Error != nil {
+			if message.Error == nil {
 				// New message received in channel. Process the event.
 				properties := message.Event.ToMap()
 				telemetryClient.TrackTrace(ctx, "services::Start::Received message", telemetry.Information, properties, true)
 				s.processEvent(ctx, message.Event)
 			} else {
-				// Discard message but report exception
+				// Error received. In this case we'll discard message but report an exception
 				properties := map[string]string{
 					"Error": message.Error.Error(),
 				}
