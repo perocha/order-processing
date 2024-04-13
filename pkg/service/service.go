@@ -6,7 +6,6 @@ import (
 
 	"github.com/perocha/order-processing/pkg/appcontext"
 	"github.com/perocha/order-processing/pkg/domain/event"
-	"github.com/perocha/order-processing/pkg/domain/order"
 	"github.com/perocha/order-processing/pkg/infrastructure/adapter/database"
 	"github.com/perocha/order-processing/pkg/infrastructure/adapter/messaging"
 	"github.com/perocha/order-processing/pkg/infrastructure/telemetry"
@@ -91,8 +90,8 @@ func (s *ServiceImpl) processEvent(ctx context.Context, event event.Event) error
 	// Based on the event type, determine the action to be taken
 	switch event.Type {
 	case "create_order":
-		// Call the OrderService to create the order
-		err := s.createOrder(ctx, event.OrderPayload)
+		// Extract order information from the event and create the order
+		err := s.orderRepo.CreateOrder(ctx, event.OrderPayload)
 		if err != nil {
 			properties := map[string]string{
 				"Error": err.Error(),
@@ -117,17 +116,5 @@ func (s *ServiceImpl) processEvent(ctx context.Context, event event.Event) error
 		telemetryClient.TrackTrace(ctx, "services::processEvent::Unsupported event type", telemetry.Warning, nil, true)
 	}
 
-	return nil
-}
-
-// CreateOrder implements the CreateOrder method of the OrderService interface.
-func (s *ServiceImpl) createOrder(ctx context.Context, order order.Order) error {
-	telemetryClient := telemetry.GetTelemetryClient(ctx)
-
-	// Log the order creation
-	properties := order.ToMap()
-	telemetryClient.TrackTrace(ctx, "services::createOrder::Creating order", telemetry.Information, properties, true)
-
-	s.orderRepo.CreateOrder(ctx, order)
 	return nil
 }
