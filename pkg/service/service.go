@@ -105,12 +105,15 @@ func (s *ServiceImpl) processEvent(ctx context.Context, event event.Event) error
 		// Extract order ID from the event
 		// Call the OrderService to delete the order
 		// Publish a message indicating successful operation if needed
+		telemetryClient.TrackTrace(ctx, "services::processEvent::Order deleted", telemetry.Information, nil, true)
 	case "update_order":
 		// Extract order information from the event
 		// Call the OrderService to update the order
 		// Publish a message indicating successful operation if needed
+		telemetryClient.TrackTrace(ctx, "services::processEvent::Order updated", telemetry.Information, nil, true)
 	default:
 		// Handle unsupported event types or errors
+		telemetryClient.TrackTrace(ctx, "services::processEvent::Unsupported event type", telemetry.Warning, nil, true)
 	}
 
 	return nil
