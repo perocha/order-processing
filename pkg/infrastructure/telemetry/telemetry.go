@@ -97,6 +97,12 @@ func (t *Telemetry) TrackException(ctx context.Context, message string, err erro
 
 	// Create the log message
 	txtMessage := fmt.Sprintf("%s::%s", SERVICE_NAME, message)
+	// Retrieve the operationID from the context and add it to the log message
+	operationID, ok := ctx.Value(appcontext.OperationIDKeyContextKey).(string)
+	if ok && operationID != "" {
+		// Add operationID to the console message
+		txtMessage = fmt.Sprintf("%s::OperationID=%s", txtMessage, operationID)
+	}
 	consoleMessage := fmt.Sprintf("%s::Error=%s::Sev=%v", txtMessage, err.Error(), severity)
 	if len(properties) > 0 {
 		consoleMessage = fmt.Sprintf("%s::Properties=%v", consoleMessage, properties)
@@ -112,6 +118,11 @@ func (t *Telemetry) TrackException(ctx context.Context, message string, err erro
 	exception.SeverityLevel = (contracts.SeverityLevel)(severity)
 	for k, v := range properties {
 		exception.Properties[k] = v
+	}
+
+	// Set parent id, using the operationID from the context
+	if operationID != "" {
+		exception.Tags.Operation().SetParentId(operationID)
 	}
 
 	t.client.Track(exception)

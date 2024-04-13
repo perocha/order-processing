@@ -46,16 +46,9 @@ func NewCosmosDBOrderRepository(ctx context.Context, endPoint string, connection
 func (r *CosmosDBOrderRepository) CreateOrder(ctx context.Context, order order.Order) error {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
 
-	properties := order.ToMap()
-	telemetryClient.TrackTrace(ctx, "CosmosDBOrderRepository::CreateOrder", telemetry.Information, properties, true)
-
 	// Create a new container
 	container, err := r.client.NewContainer("orders", "/id")
 	if err != nil {
-		properties := map[string]string{
-			"Error": err.Error(),
-		}
-		telemetryClient.TrackException(ctx, "CosmosDBOrderRepository::CreateOrder::Error creating container", err, telemetry.Critical, properties, true)
 		return err
 	}
 
@@ -64,24 +57,18 @@ func (r *CosmosDBOrderRepository) CreateOrder(ctx context.Context, order order.O
 	// Convert order to json
 	orderJson, err := json.Marshal(order)
 	if err != nil {
-		properties := map[string]string{
-			"Error": err.Error(),
-		}
-		telemetryClient.TrackException(ctx, "CosmosDBOrderRepository::CreateOrder::Error marshalling order", err, telemetry.Critical, properties, true)
 		return err
 	}
 
 	// Create an item
 	_, err = container.CreateItem(ctx, pk, orderJson, nil)
 	if err != nil {
-		properties := map[string]string{
-			"Error": err.Error(),
-		}
-		telemetryClient.TrackException(ctx, "CosmosDBOrderRepository::CreateOrder::Error creating item", err, telemetry.Critical, properties, true)
 		return err
 	}
 
-	telemetryClient.TrackTrace(ctx, "CosmosDBOrderRepository::CreateOrder::Order created successfully", telemetry.Information, nil, true)
+	properties := order.ToMap()
+	telemetryClient.TrackTrace(ctx, "CosmosDBOrderRepository::CreateOrder::Order created successfully", telemetry.Information, properties, true)
+
 	return nil
 }
 

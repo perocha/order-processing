@@ -94,11 +94,12 @@ func (s *ServiceImpl) processEvent(ctx context.Context, event event.Event) error
 		// Call the OrderService to create the order
 		err := s.createOrder(ctx, event.OrderPayload)
 		if err != nil {
-			telemetryClient.TrackException(ctx, "services::processEvent::Error creating order", err, telemetry.Error, nil, true)
+			properties := map[string]string{
+				"Error": err.Error(),
+			}
+			telemetryClient.TrackException(ctx, "services::processEvent::Error creating order", err, telemetry.Error, properties, true)
 			return err
 		}
-
-		// Publish a message indicating successful operation if needed
 
 		telemetryClient.TrackTrace(ctx, "services::processEvent::Order created", telemetry.Information, nil, true)
 	case "delete_order":
