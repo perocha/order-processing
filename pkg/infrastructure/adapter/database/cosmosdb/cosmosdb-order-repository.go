@@ -2,6 +2,7 @@ package cosmosdb
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
 	"github.com/perocha/order-processing/pkg/domain/order"
@@ -47,6 +48,40 @@ func (r *CosmosDBOrderRepository) CreateOrder(ctx context.Context, order order.O
 
 	properties := order.ToMap()
 	telemetryClient.TrackTrace(ctx, "CosmosDBOrderRepository::CreateOrder", telemetry.Information, properties, true)
+
+	// Create a new container
+	container, err := r.client.NewContainer("orders", "/id")
+	if err != nil {
+		properties := map[string]string{
+			"Error": err.Error(),
+		}
+		telemetryClient.TrackException(ctx, "CosmosDBOrderRepository::CreateOrder::Error creating container", err, telemetry.Critical, properties, true)
+		return err
+	}
+
+	pk := azcosmos.NewPartitionKeyString("1")
+
+	// Convert order to json
+	orderJson, err := json.Marshal(order)
+	if err != nil {
+		properties := map[string]string{
+			"Error": err.Error(),
+		}
+		telemetryClient.TrackException(ctx, "CosmosDBOrderRepository::CreateOrder::Error marshalling order", err, telemetry.Critical, properties, true)
+		return err
+	}
+
+	// Create an item
+	_, err = container.CreateItem(ctx, pk, orderJson, nil)
+	if err != nil {
+		properties := map[string]string{
+			"Error": err.Error(),
+		}
+		telemetryClient.TrackException(ctx, "CosmosDBOrderRepository::CreateOrder::Error creating item", err, telemetry.Critical, properties, true)
+		return err
+	}
+
+	telemetryClient.TrackTrace(ctx, "CosmosDBOrderRepository::CreateOrder::Order created successfully", telemetry.Information, nil, true)
 	return nil
 }
 
