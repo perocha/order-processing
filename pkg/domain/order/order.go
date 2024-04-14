@@ -2,10 +2,11 @@ package order
 
 // Order definition
 type Order struct {
-	OrderID    string
-	ProductID  string
-	CustomerID string
-	Status     string
+	OrderID         string
+	ProductCategory string
+	ProductID       string
+	CustomerID      string
+	Status          string
 }
 
 // Convert Order struct into a map[string]string

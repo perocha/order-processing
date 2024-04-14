@@ -3,54 +3,95 @@ package cosmosdb
 import (
 	"context"
 	"encoding/json"
+	"errors"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
 	"github.com/perocha/order-processing/pkg/domain/order"
 	"github.com/perocha/order-processing/pkg/infrastructure/telemetry"
 )
 
 type CosmosDBOrderRepository struct {
-	client *azcosmos.Client
+	client    *azcosmos.Client
+	database  *azcosmos.DatabaseClient
+	container *azcosmos.ContainerClient
 }
 
 // Initialize CosmosDB repository using the provided connection string
 func NewCosmosDBOrderRepository(ctx context.Context, endPoint string, connectionString string) (*CosmosDBOrderRepository, error) {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
 
-	credential, err := azcosmos.NewKeyCredential(connectionString)
-	if err != nil {
-		properties := map[string]string{
-			"Error": err.Error(),
+	/*
+		credential, err := azcosmos.NewKeyCredential(connectionString)
+		if err != nil {
+			properties := map[string]string{
+				"Error": err.Error(),
+			}
+			telemetryClient.TrackException(ctx, "CosmosDBOrderRepository::NewCosmosDBOrderRepository::Error creating key credential", err, telemetry.Critical, properties, true)
+			return nil, err
 		}
-		telemetryClient.TrackException(ctx, "CosmosDBOrderRepository::NewCosmosDBOrderRepository::Error creating key credential", err, telemetry.Critical, properties, true)
+
+		client, err := azcosmos.NewClientWithKey(endPoint, credential, nil)
+		if err != nil {
+			properties := map[string]string{
+				"Error": err.Error(),
+			}
+			telemetryClient.TrackException(ctx, "CosmosDBOrderRepository::NewCosmosDBOrderRepository::Error creating client", err, telemetry.Critical, properties, true)
+			return nil, err
+		}
+
+		telemetryClient.TrackTrace(ctx, "CosmosDBOrderRepository::NewCosmosDBOrderRepository::DB client created successfully", telemetry.Information, nil, true)
+	*/
+
+	credential, err := azidentity.NewDefaultAzureCredential(nil)
+	if err != nil {
+		telemetryClient.TrackException(ctx, "CosmosDBOrderRepository::NewCosmosDBOrderRepository::Error creating default azure credential", err, telemetry.Critical, nil, true)
 		return nil, err
 	}
 
-	client, err := azcosmos.NewClientWithKey(endPoint, credential, nil)
+	clientOptions := azcosmos.ClientOptions{
+		EnableContentResponseOnWrite: true,
+	}
+
+	client, err := azcosmos.NewClient(endPoint, credential, &clientOptions)
 	if err != nil {
-		properties := map[string]string{
-			"Error": err.Error(),
-		}
-		telemetryClient.TrackException(ctx, "CosmosDBOrderRepository::NewCosmosDBOrderRepository::Error creating client", err, telemetry.Critical, properties, true)
+		telemetryClient.TrackException(ctx, "CosmosDBOrderRepository::NewCosmosDBOrderRepository::Error creating client", err, telemetry.Critical, nil, true)
 		return nil, err
 	}
 
-	telemetryClient.TrackTrace(ctx, "CosmosDBOrderRepository::NewCosmosDBOrderRepository::DB client created successfully", telemetry.Information, nil, true)
+	// Retrieve database
+	database, err := client.NewDatabase("microservicesdb")
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a new container
+	container, err := database.NewContainer("orders")
+	if err != nil {
+		return nil, err
+	}
 
 	return &CosmosDBOrderRepository{
-		client: client,
+		client:    client,
+		database:  database,
+		container: container,
 	}, nil
 }
 
 // Creates a new order in CosmosDB
 func (r *CosmosDBOrderRepository) CreateOrder(ctx context.Context, order order.Order) error {
-	// Create a new container
-	container, err := r.client.NewContainer("orders", "/id")
-	if err != nil {
+	telemetryClient := telemetry.GetTelemetryClient(ctx)
+	properties := order.ToMap()
+	telemetryClient.TrackTrace(ctx, "CosmosDBOrderRepository::CreateOrder", telemetry.Information, properties, true)
+
+	// New partition key
+	pk := azcosmos.NewPartitionKeyString("ProductCategory")
+
+	if order.OrderID == "" {
+		// Generate error code
+		err := errors.New("orderID is required")
 		return err
 	}
-
-	pk := azcosmos.NewPartitionKeyString("1")
 
 	// Convert order to json
 	orderJson, err := json.Marshal(order)
@@ -59,7 +100,7 @@ func (r *CosmosDBOrderRepository) CreateOrder(ctx context.Context, order order.O
 	}
 
 	// Create an item
-	_, err = container.CreateItem(ctx, pk, orderJson, nil)
+	_, err = r.container.UpsertItem(ctx, pk, orderJson, nil)
 	if err != nil {
 		return err
 	}

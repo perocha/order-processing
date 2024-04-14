@@ -52,6 +52,8 @@ func main() {
 		panic("Main::Fatal error::Failed to initialize EventHub")
 	}
 
+	telemetryClient.TrackTrace(ctx, "Main::All adapters initialized successfully", telemetry.Information, nil, true)
+
 	// Create a channel to listen for termination signals
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
@@ -60,7 +62,7 @@ func main() {
 	serviceInstance := service.Initialize(ctx, eventHubInstance, orderRepository)
 	go serviceInstance.Start(ctx, signals)
 
-	telemetryClient.TrackTrace(ctx, "Main::All services started", telemetry.Information, nil, true)
+	telemetryClient.TrackTrace(ctx, "Main::Service layer initialized successfully", telemetry.Information, nil, true)
 
 	// Infinite loop
 	for {
