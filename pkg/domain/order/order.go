@@ -2,11 +2,11 @@ package order
 
 // Order definition
 type Order struct {
-	Id              string
-	ProductCategory string
-	ProductID       string
-	CustomerID      string
-	Status          string
+	Id              string `json:"id"`
+	ProductCategory string `json:"productCategory"`
+	ProductID       string `json:"productId"`
+	CustomerID      string `json:"customerId"`
+	Status          string `json:"status"`
 }
 
 // Convert Order struct into a map[string]string
