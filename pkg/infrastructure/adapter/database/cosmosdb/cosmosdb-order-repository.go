@@ -85,7 +85,7 @@ func (r *CosmosDBOrderRepository) CreateOrder(ctx context.Context, order order.O
 	telemetryClient.TrackTrace(ctx, "CosmosDBOrderRepository::CreateOrder", telemetry.Information, properties, true)
 
 	// New partition key
-	pk := azcosmos.NewPartitionKeyString("ProductCategory")
+	pk := azcosmos.NewPartitionKeyString(order.ProductCategory)
 
 	if order.OrderID == "" {
 		// Generate error code
@@ -98,6 +98,11 @@ func (r *CosmosDBOrderRepository) CreateOrder(ctx context.Context, order order.O
 	if err != nil {
 		return err
 	}
+
+	properties = map[string]string{
+		"orderJson": string(orderJson),
+	}
+	telemetryClient.TrackTrace(ctx, "CosmosDBOrderRepository::CreateOrder::Order JSON", telemetry.Information, properties, true)
 
 	// Create an item
 	_, err = r.container.UpsertItem(ctx, pk, orderJson, nil)

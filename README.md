@@ -65,3 +65,35 @@ The arrows in the diagram indicate the flow of processes or data from one compon
 It is believed that this Hexagonal Architecture approach makes the microservice more adaptable to changes and easier to maintain. 
 
 ![alt text](image.png)
+
+# CosmosDB access config
+
+To enable access to CosmosDB, I've configured RBAC access to the AKS, following these instructions: https://learn.microsoft.com/en-us/azure/cosmos-db/how-to-setup-rbac
+
+I first created a "MyReadWriteRole" custom role.
+
+```json
+{
+    "RoleName": "MyReadWriteRole",
+    "Type": "CustomRole",
+    "AssignableScopes": ["/"],
+    "Permissions": [{
+        "DataActions": [
+            "Microsoft.DocumentDB/databaseAccounts/readMetadata",
+            "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers/items/*",
+            "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers/*"
+        ]
+    }]
+}
+```
+
+And then created a role assignment:
+
+```bash
+resourceGroupName='<myResourceGroup>'
+accountName='<myCosmosAccount>'
+readOnlyRoleDefinitionId='<roleDefinitionId>' # as fetched above
+# For Service Principals make sure to use the Object ID as found in the Enterprise applications section of the Azure Active Directory portal blade.
+principalId='<aadPrincipalId>'
+az cosmosdb sql role assignment create --account-name $accountName --resource-group $resourceGroupName --scope "/" --principal-id $principalId --role-definition-id $readOnlyRoleDefinitionId
+```
