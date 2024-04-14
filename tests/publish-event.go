@@ -9,11 +9,11 @@ import (
 )
 
 type Order struct {
-	OrderID         string `json:"OrderID"`
-	ProductCategory string `json:"ProductCategory"`
-	ProductID       string `json:"ProductID"`
-	CustomerID      string `json:"CustomerID"`
-	Status          string `json:"Status"`
+	Id              string `json:"id"`
+	ProductCategory string `json:"productcategory"`
+	ProductID       string `json:"productid"`
+	CustomerID      string `json:"customerid"`
+	Status          string `json:"status"`
 }
 
 type Event struct {

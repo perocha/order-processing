@@ -2,7 +2,7 @@ package order
 
 // Order definition
 type Order struct {
-	OrderID         string
+	Id              string
 	ProductCategory string
 	ProductID       string
 	CustomerID      string
@@ -12,9 +12,10 @@ type Order struct {
 // Convert Order struct into a map[string]string
 func (e *Order) ToMap() map[string]string {
 	return map[string]string{
-		"OrderID":    e.OrderID,
-		"ProductID":  e.ProductID,
-		"CustomerID": e.CustomerID,
-		"Status":     e.Status,
+		"Id":              e.Id,
+		"ProductCategory": e.ProductCategory,
+		"ProductID":       e.ProductID,
+		"CustomerID":      e.CustomerID,
+		"Status":          e.Status,
 	}
 }

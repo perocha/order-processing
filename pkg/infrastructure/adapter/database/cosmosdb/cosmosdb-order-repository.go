@@ -87,9 +87,9 @@ func (r *CosmosDBOrderRepository) CreateOrder(ctx context.Context, order order.O
 	// New partition key
 	pk := azcosmos.NewPartitionKeyString(order.ProductCategory)
 
-	if order.OrderID == "" {
+	if order.Id == "" {
 		// Generate error code
-		err := errors.New("orderID is required")
+		err := errors.New("Id is required")
 		return err
 	}
 
@@ -127,7 +127,7 @@ func (r *CosmosDBOrderRepository) DeleteOrder(ctx context.Context, orderID strin
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
 
 	properties := map[string]string{
-		"OrderID": orderID,
+		"Id": orderID,
 	}
 	telemetryClient.TrackTrace(ctx, "CosmosDBOrderRepository::DeleteOrder", telemetry.Information, properties, true)
 	return nil
