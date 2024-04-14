@@ -3,7 +3,7 @@ package order
 // Order definition
 type Order struct {
 	Id              string `json:"id"`
-	ProductCategory string `json:"productCategory"`
+	ProductCategory string `json:"ProductCategory"`
 	ProductID       string `json:"productId"`
 	CustomerID      string `json:"customerId"`
 	Status          string `json:"status"`
