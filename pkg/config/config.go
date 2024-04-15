@@ -19,6 +19,8 @@ type Config struct {
 	AppInsightsInstrumentationKey    string
 	CosmosdbEndpoint                 string
 	CosmosdbConnectionString         string
+	CosmosdbDatabaseName             string
+	CosmosdbContainerName            string
 	client                           *azappconfig.Client
 }
 
@@ -61,6 +63,8 @@ func InitializeConfig() *Config {
 	cfg.CheckpointStoreConnectionString, _ = cfg.GetVar("CHECKPOINTSTORE_STORAGE_CONNECTION_STRING")
 	cfg.CosmosdbEndpoint, _ = cfg.GetVar("COSMOSDB_ENDPOINT")
 	cfg.CosmosdbConnectionString, _ = cfg.GetVar("COSMOSDB_CONNECTION_STRING")
+	cfg.CosmosdbDatabaseName, _ = cfg.GetVar("COSMOSDB_DATABASE_NAME")
+	cfg.CosmosdbContainerName, _ = cfg.GetVar("COSMOSDB_CONTAINER_NAME")
 
 	return cfg
 }

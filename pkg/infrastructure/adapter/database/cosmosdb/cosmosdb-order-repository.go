@@ -18,41 +18,20 @@ type CosmosDBOrderRepository struct {
 }
 
 // Initialize CosmosDB repository using the provided connection string
-func NewCosmosDBOrderRepository(ctx context.Context, endPoint string, connectionString string) (*CosmosDBOrderRepository, error) {
+func NewCosmosDBOrderRepository(ctx context.Context, endPoint, connectionString, databaseName, containerName string) (*CosmosDBOrderRepository, error) {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
 
-	/*
-		credential, err := azcosmos.NewKeyCredential(connectionString)
-		if err != nil {
-			properties := map[string]string{
-				"Error": err.Error(),
-			}
-			telemetryClient.TrackException(ctx, "CosmosDBOrderRepository::NewCosmosDBOrderRepository::Error creating key credential", err, telemetry.Critical, properties, true)
-			return nil, err
-		}
-
-		client, err := azcosmos.NewClientWithKey(endPoint, credential, nil)
-		if err != nil {
-			properties := map[string]string{
-				"Error": err.Error(),
-			}
-			telemetryClient.TrackException(ctx, "CosmosDBOrderRepository::NewCosmosDBOrderRepository::Error creating client", err, telemetry.Critical, properties, true)
-			return nil, err
-		}
-
-		telemetryClient.TrackTrace(ctx, "CosmosDBOrderRepository::NewCosmosDBOrderRepository::DB client created successfully", telemetry.Information, nil, true)
-	*/
-
+	// Create a new default azure credential
 	credential, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
 		telemetryClient.TrackException(ctx, "CosmosDBOrderRepository::NewCosmosDBOrderRepository::Error creating default azure credential", err, telemetry.Critical, nil, true)
 		return nil, err
 	}
 
+	// Create a new CosmosDB client
 	clientOptions := azcosmos.ClientOptions{
 		EnableContentResponseOnWrite: true,
 	}
-
 	client, err := azcosmos.NewClient(endPoint, credential, &clientOptions)
 	if err != nil {
 		telemetryClient.TrackException(ctx, "CosmosDBOrderRepository::NewCosmosDBOrderRepository::Error creating client", err, telemetry.Critical, nil, true)
@@ -60,13 +39,13 @@ func NewCosmosDBOrderRepository(ctx context.Context, endPoint string, connection
 	}
 
 	// Retrieve database
-	database, err := client.NewDatabase("microservicesdb")
+	database, err := client.NewDatabase(databaseName)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create a new container
-	container, err := database.NewContainer("orders")
+	container, err := database.NewContainer(containerName)
 	if err != nil {
 		return nil, err
 	}

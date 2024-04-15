@@ -39,7 +39,7 @@ func main() {
 	ctx := context.WithValue(context.Background(), appcontext.TelemetryContextKey, telemetryClient)
 
 	// Initialize CosmosDB repository
-	orderRepository, err := cosmosdb.NewCosmosDBOrderRepository(ctx, cfg.CosmosdbEndpoint, cfg.CosmosdbConnectionString)
+	orderRepository, err := cosmosdb.NewCosmosDBOrderRepository(ctx, cfg.CosmosdbEndpoint, cfg.CosmosdbConnectionString, cfg.CosmosdbDatabaseName, cfg.CosmosdbContainerName)
 	if err != nil {
 		telemetryClient.TrackException(ctx, "Main::Fatal error::Failed to initialize CosmosDB repository", err, telemetry.Critical, nil, true)
 		panic("Main::Fatal error::Failed to initialize CosmosDB repository")
