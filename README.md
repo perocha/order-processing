@@ -64,7 +64,7 @@ The arrows in the diagram indicate the flow of processes or data from one compon
 
 It is believed that this Hexagonal Architecture approach makes the microservice more adaptable to changes and easier to maintain. 
 
-![alt text](image.png)
+![hexagonal architecture diagram](docs/hexagonal-architecture.png)
 
 # CosmosDB access config
 
