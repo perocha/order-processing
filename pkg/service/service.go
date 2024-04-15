@@ -89,8 +89,9 @@ func (s *ServiceImpl) processEvent(ctx context.Context, event event.Event) error
 
 	// Based on the event type, determine the action to be taken
 	switch event.Type {
+
 	case "create_order":
-		// Extract order information from the event and create the order
+		// Create an order in the database
 		err := s.orderRepo.CreateOrder(ctx, event.OrderPayload)
 		if err != nil {
 			properties := map[string]string{
@@ -99,18 +100,32 @@ func (s *ServiceImpl) processEvent(ctx context.Context, event event.Event) error
 			telemetryClient.TrackException(ctx, "services::processEvent::Error creating order", err, telemetry.Error, properties, true)
 			return err
 		}
-
 		telemetryClient.TrackTrace(ctx, "services::processEvent::Order created", telemetry.Information, nil, true)
+
 	case "delete_order":
-		// Extract order ID from the event
-		// Call the OrderService to delete the order
-		// Publish a message indicating successful operation if needed
+		// Delete an order from the database
+		err := s.orderRepo.DeleteOrder(ctx, event.OrderPayload.Id, event.OrderPayload.ProductCategory)
+		if err != nil {
+			properties := map[string]string{
+				"Error": err.Error(),
+			}
+			telemetryClient.TrackException(ctx, "services::processEvent::Error deleting order", err, telemetry.Error, properties, true)
+			return err
+		}
 		telemetryClient.TrackTrace(ctx, "services::processEvent::Order deleted", telemetry.Information, nil, true)
+
 	case "update_order":
-		// Extract order information from the event
-		// Call the OrderService to update the order
-		// Publish a message indicating successful operation if needed
+		// Update an order in the database
+		err := s.orderRepo.UpdateOrder(ctx, event.OrderPayload)
+		if err != nil {
+			properties := map[string]string{
+				"Error": err.Error(),
+			}
+			telemetryClient.TrackException(ctx, "services::processEvent::Error updating order", err, telemetry.Error, properties, true)
+			return err
+		}
 		telemetryClient.TrackTrace(ctx, "services::processEvent::Order updated", telemetry.Information, nil, true)
+
 	default:
 		// Handle unsupported event types or errors
 		telemetryClient.TrackTrace(ctx, "services::processEvent::Unsupported event type", telemetry.Warning, nil, true)

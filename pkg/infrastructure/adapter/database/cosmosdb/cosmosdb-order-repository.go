@@ -3,7 +3,6 @@ package cosmosdb
 import (
 	"context"
 	"encoding/json"
-	"errors"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
@@ -59,32 +58,17 @@ func NewCosmosDBOrderRepository(ctx context.Context, endPoint, connectionString,
 
 // Creates a new order in CosmosDB
 func (r *CosmosDBOrderRepository) CreateOrder(ctx context.Context, order order.Order) error {
-	telemetryClient := telemetry.GetTelemetryClient(ctx)
-	properties := order.ToMap()
-	telemetryClient.TrackTrace(ctx, "CosmosDBOrderRepository::CreateOrder", telemetry.Information, properties, true)
-
-	// New partition key
-	pk := azcosmos.NewPartitionKeyString(order.ProductCategory)
-
-	if order.Id == "" {
-		// Generate error code
-		err := errors.New("Id is required")
-		return err
-	}
-
 	// Convert order to json
 	orderJson, err := json.Marshal(order)
 	if err != nil {
 		return err
 	}
 
-	properties = map[string]string{
-		"orderJson": string(orderJson),
-	}
-	telemetryClient.TrackTrace(ctx, "CosmosDBOrderRepository::CreateOrder::Order JSON", telemetry.Information, properties, true)
+	// Create partition key
+	pk := azcosmos.NewPartitionKeyString(order.ProductCategory)
 
 	// Create an item
-	_, err = r.container.UpsertItem(ctx, pk, orderJson, nil)
+	_, err = r.container.CreateItem(ctx, pk, orderJson, nil)
 	if err != nil {
 		return err
 	}
@@ -94,20 +78,55 @@ func (r *CosmosDBOrderRepository) CreateOrder(ctx context.Context, order order.O
 
 // Updates an existing order in CosmosDB
 func (r *CosmosDBOrderRepository) UpdateOrder(ctx context.Context, order order.Order) error {
-	telemetryClient := telemetry.GetTelemetryClient(ctx)
+	// Create partition key
+	pk := azcosmos.NewPartitionKeyString(order.ProductCategory)
 
-	properties := order.ToMap()
-	telemetryClient.TrackTrace(ctx, "CosmosDBOrderRepository::UpdateOrder", telemetry.Information, properties, true)
+	// Convert order to json
+	orderJson, err := json.Marshal(order)
+	if err != nil {
+		return err
+	}
+
+	// Update an item
+	_, err = r.container.UpsertItem(ctx, pk, orderJson, nil)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // Deletes an order from CosmosDB
-func (r *CosmosDBOrderRepository) DeleteOrder(ctx context.Context, orderID string) error {
-	telemetryClient := telemetry.GetTelemetryClient(ctx)
+func (r *CosmosDBOrderRepository) DeleteOrder(ctx context.Context, id, partitionKey string) error {
+	// Create partition key
+	pk := azcosmos.NewPartitionKeyString(partitionKey)
 
-	properties := map[string]string{
-		"Id": orderID,
+	// Delete an item
+	_, err := r.container.DeleteItem(ctx, pk, id, nil)
+	if err != nil {
+		return err
 	}
-	telemetryClient.TrackTrace(ctx, "CosmosDBOrderRepository::DeleteOrder", telemetry.Information, properties, true)
+
 	return nil
+}
+
+// Retrieves an order from CosmosDB
+func (r *CosmosDBOrderRepository) GetOrder(ctx context.Context, id, partitionKey string) (*order.Order, error) {
+	// Create partition key
+	pk := azcosmos.NewPartitionKeyString(partitionKey)
+
+	// Retrieve an item
+	item, err := r.container.ReadItem(ctx, pk, id, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert item to order
+	var order order.Order
+	err = json.Unmarshal(item.Value, &order)
+	if err != nil {
+		return nil, err
+	}
+
+	return &order, nil
 }

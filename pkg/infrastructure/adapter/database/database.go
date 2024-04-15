@@ -15,5 +15,5 @@ type Database interface {
 type OrderRepository interface {
 	CreateOrder(ctx context.Context, order order.Order) error
 	UpdateOrder(ctx context.Context, order order.Order) error
-	DeleteOrder(ctx context.Context, orderID string) error
+	DeleteOrder(ctx context.Context, id string, partitionKey string) error
 }
