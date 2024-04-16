@@ -1,11 +1,10 @@
-name: Deploy Docker Images in K8S
+name: Deploy Docker Image in K8S
 
 on:
   workflow_dispatch:
 
 jobs:
   deploy:
-    needs: build
     runs-on: ubuntu-latest
 
     steps:
