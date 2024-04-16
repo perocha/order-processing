@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: order-processing-deployment
+  name: order-processing
 spec:
   replicas: 1
   selector:
