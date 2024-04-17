@@ -3,6 +3,7 @@ package cosmosdb
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
@@ -58,6 +59,9 @@ func NewCosmosDBOrderRepository(ctx context.Context, endPoint, connectionString,
 
 // Creates a new order in CosmosDB
 func (r *CosmosDBOrderRepository) CreateOrder(ctx context.Context, order order.Order) error {
+	startTime := time.Now()
+	telemetryClient := telemetry.GetTelemetryClient(ctx)
+
 	// Convert order to json
 	orderJson, err := json.Marshal(order)
 	if err != nil {
@@ -73,11 +77,16 @@ func (r *CosmosDBOrderRepository) CreateOrder(ctx context.Context, order order.O
 		return err
 	}
 
+	telemetryClient.TrackDependency(ctx, "CosmosDBOrderRepository", "CreateOrder", "CosmosDB", r.client.Endpoint(), true, startTime, time.Now(), nil, true)
+
 	return nil
 }
 
 // Updates an existing order in CosmosDB
 func (r *CosmosDBOrderRepository) UpdateOrder(ctx context.Context, order order.Order) error {
+	startTime := time.Now()
+	telemetryClient := telemetry.GetTelemetryClient(ctx)
+
 	// Create partition key
 	pk := azcosmos.NewPartitionKeyString(order.ProductCategory)
 
@@ -93,11 +102,16 @@ func (r *CosmosDBOrderRepository) UpdateOrder(ctx context.Context, order order.O
 		return err
 	}
 
+	telemetryClient.TrackDependency(ctx, "CosmosDBOrderRepository", "UpdateOrder", "CosmosDB", r.client.Endpoint(), true, startTime, time.Now(), nil, true)
+
 	return nil
 }
 
 // Deletes an order from CosmosDB
 func (r *CosmosDBOrderRepository) DeleteOrder(ctx context.Context, id, partitionKey string) error {
+	startTime := time.Now()
+	telemetryClient := telemetry.GetTelemetryClient(ctx)
+
 	// Create partition key
 	pk := azcosmos.NewPartitionKeyString(partitionKey)
 
@@ -107,11 +121,16 @@ func (r *CosmosDBOrderRepository) DeleteOrder(ctx context.Context, id, partition
 		return err
 	}
 
+	telemetryClient.TrackDependency(ctx, "CosmosDBOrderRepository", "DeleteOrder", "CosmosDB", r.client.Endpoint(), true, startTime, time.Now(), nil, true)
+
 	return nil
 }
 
 // Retrieves an order from CosmosDB
 func (r *CosmosDBOrderRepository) GetOrder(ctx context.Context, id, partitionKey string) (*order.Order, error) {
+	startTime := time.Now()
+	telemetryClient := telemetry.GetTelemetryClient(ctx)
+
 	// Create partition key
 	pk := azcosmos.NewPartitionKeyString(partitionKey)
 
@@ -127,6 +146,8 @@ func (r *CosmosDBOrderRepository) GetOrder(ctx context.Context, id, partitionKey
 	if err != nil {
 		return nil, err
 	}
+
+	telemetryClient.TrackDependency(ctx, "CosmosDBOrderRepository", "DeleteOrder", "CosmosDB", r.client.Endpoint(), true, startTime, time.Now(), nil, true)
 
 	return &order, nil
 }

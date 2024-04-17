@@ -17,7 +17,7 @@ type ServiceImpl struct {
 	orderRepo       database.OrderRepository
 }
 
-// NewService creates a new instance of ServiceImpl.
+// Creates a new instance of ServiceImpl.
 func Initialize(ctx context.Context, messagingSystem messaging.MessagingSystem, orderRepository database.OrderRepository) *ServiceImpl {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
 	telemetryClient.TrackTrace(ctx, "services::Initialize::Initializing service logic", telemetry.Information, nil, true)
