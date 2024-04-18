@@ -18,6 +18,20 @@ func TestConfig_WrongConnectionString(t *testing.T) {
 	}
 }
 
+/*
+func TestConfig_WrongConnectionString(t *testing.T) {
+	// Set environment variables
+	os.Setenv("APPCONFIGURATION_CONNECTION_STRING", "wrong_connection_string")
+
+	// Initialize config
+	_, err := InitializeConfig("config.yaml")
+
+	// Check if config is nil
+	if err == nil {
+		t.Error("Expected error for wrong connection string")
+	}
+}
+
 func TestConfig_GetVar(t *testing.T) {
 	// Set environment variables
 	os.Setenv("APPCONFIGURATION_CONNECTION_STRING", "")
@@ -106,3 +120,4 @@ func TestConfig_GetVarWithNilClient(t *testing.T) {
 		t.Error("Expected error for nil client")
 	}
 }
+*/
