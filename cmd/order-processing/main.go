@@ -18,14 +18,15 @@ import (
 
 const (
 	SERVICE_NAME = "OrderProcessing"
+	configFile   = "config.yaml"
 )
 
 func main() {
 	// Initialize configuration
-	cfg := config.InitializeConfig()
-	if cfg == nil {
+	cfg, err := config.InitializeConfig(configFile)
+	if err != nil {
 		// Print error
-		log.Println("Main::Fatal error::Failed to load configuration")
+		log.Printf("Main::Fatal error::Failed to load configuration %s\n", err.Error())
 		panic("Main::Failed to load configuration")
 	}
 

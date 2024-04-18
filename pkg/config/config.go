@@ -29,22 +29,24 @@ type yamlConfig struct {
 }
 
 // InitializeConfig creates a new instance of Config with values loaded from environment variables
-func InitializeConfig() *Config {
+func InitializeConfig(configFile string) (*Config, error) {
 	cfg := &Config{}
 
 	// Create a new App Configuration client
 	connectionString := os.Getenv("APPCONFIGURATION_CONNECTION_STRING")
 	if connectionString == "" {
-		log.Println("Error: APPCONFIGURATION_CONNECTION_STRING environment variable is not set, loading from config.yaml file")
-		data, err := os.ReadFile("config.yaml")
+		log.Printf("Error: APPCONFIGURATION_CONNECTION_STRING environment variable is not set, loading from %s\n", configFile)
+		data, err := os.ReadFile(configFile)
 		if err != nil {
-			log.Fatalf("Error: Failed to read config.yaml file: %v", err)
+			log.Printf("Error: Failed to read configuration yaml file: %v\n", err)
+			return nil, err
 		}
 
 		var yamlCfg yamlConfig
 		err = yaml.Unmarshal(data, &yamlCfg)
 		if err != nil {
-			log.Fatalf("Error: Failed to unmarshal config.yaml file: %v", err)
+			log.Printf("Error: Failed to unmarshal config.yaml file: %v\n", err)
+			return nil, err
 		}
 		connectionString = yamlCfg.AppConfigurationConnectionString
 	}
@@ -53,7 +55,7 @@ func InitializeConfig() *Config {
 	cfg.client, err = azappconfig.NewClientFromConnectionString(connectionString, nil)
 	if err != nil {
 		log.Println("Error: Failed to create new App Configuration client")
-		return nil
+		return nil, err
 	}
 
 	cfg.AppInsightsInstrumentationKey, _ = cfg.GetVar("APPINSIGHTS_INSTRUMENTATIONKEY")
@@ -66,7 +68,7 @@ func InitializeConfig() *Config {
 	cfg.CosmosdbDatabaseName, _ = cfg.GetVar("COSMOSDB_DATABASE_NAME")
 	cfg.CosmosdbContainerName, _ = cfg.GetVar("COSMOSDB_CONTAINER_NAME")
 
-	return cfg
+	return cfg, nil
 }
 
 // GetVar retrieves a configuration setting by key from App Configuration
