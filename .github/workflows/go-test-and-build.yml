@@ -16,6 +16,10 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - name: Create config.yaml for testing
+      run: |
+        echo "your_key: ${{secrets.TEST_CONFIG}}" > ./pkg/config/config.yaml
+
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
