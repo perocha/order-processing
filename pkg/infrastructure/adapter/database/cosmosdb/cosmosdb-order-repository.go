@@ -11,10 +11,11 @@ import (
 	"github.com/perocha/order-processing/pkg/infrastructure/telemetry"
 )
 
+// CosmosDB order repository
 type CosmosDBOrderRepository struct {
-	client    *azcosmos.Client
-	database  *azcosmos.DatabaseClient
-	container *azcosmos.ContainerClient
+	client    ClientInterface
+	database  DatabaseClientInterface
+	container ContainerClientInterface
 }
 
 // Initialize CosmosDB repository using the provided connection string
@@ -37,23 +38,26 @@ func NewCosmosDBOrderRepository(ctx context.Context, endPoint, connectionString,
 		telemetryClient.TrackException(ctx, "CosmosDBOrderRepository::NewCosmosDBOrderRepository::Error creating client", err, telemetry.Critical, nil, true)
 		return nil, err
 	}
+	cosmosClient := &CosmosClient{client: client}
 
 	// Retrieve database
 	database, err := client.NewDatabase(databaseName)
 	if err != nil {
 		return nil, err
 	}
+	databaseClient := &CosmosDatabase{database: database}
 
 	// Create a new container
 	container, err := database.NewContainer(containerName)
 	if err != nil {
 		return nil, err
 	}
+	containerClient := &CosmosContainer{container: container}
 
 	return &CosmosDBOrderRepository{
-		client:    client,
-		database:  database,
-		container: container,
+		client:    cosmosClient,
+		database:  databaseClient,
+		container: containerClient,
 	}, nil
 }
 
@@ -77,7 +81,7 @@ func (r *CosmosDBOrderRepository) CreateOrder(ctx context.Context, order order.O
 		return err
 	}
 
-	telemetryClient.TrackDependency(ctx, "CosmosDBOrderRepository", "CreateOrder", "CosmosDB", r.client.Endpoint(), true, startTime, time.Now(), nil, true)
+	telemetryClient.TrackDependency(ctx, "CosmosDBOrderRepository", "CreateOrder", "CosmosDB", r.client.Endpoint(), true, startTime, time.Now(), order.ToMap(), true)
 
 	return nil
 }
@@ -102,7 +106,7 @@ func (r *CosmosDBOrderRepository) UpdateOrder(ctx context.Context, order order.O
 		return err
 	}
 
-	telemetryClient.TrackDependency(ctx, "CosmosDBOrderRepository", "UpdateOrder", "CosmosDB", r.client.Endpoint(), true, startTime, time.Now(), nil, true)
+	telemetryClient.TrackDependency(ctx, "CosmosDBOrderRepository", "UpdateOrder", "CosmosDB", r.client.Endpoint(), true, startTime, time.Now(), order.ToMap(), true)
 
 	return nil
 }
@@ -121,7 +125,10 @@ func (r *CosmosDBOrderRepository) DeleteOrder(ctx context.Context, id, partition
 		return err
 	}
 
-	telemetryClient.TrackDependency(ctx, "CosmosDBOrderRepository", "DeleteOrder", "CosmosDB", r.client.Endpoint(), true, startTime, time.Now(), nil, true)
+	properties := map[string]string{
+		"OrderId": id,
+	}
+	telemetryClient.TrackDependency(ctx, "CosmosDBOrderRepository", "DeleteOrder", "CosmosDB", r.client.Endpoint(), true, startTime, time.Now(), properties, true)
 
 	return nil
 }
@@ -147,7 +154,7 @@ func (r *CosmosDBOrderRepository) GetOrder(ctx context.Context, id, partitionKey
 		return nil, err
 	}
 
-	telemetryClient.TrackDependency(ctx, "CosmosDBOrderRepository", "DeleteOrder", "CosmosDB", r.client.Endpoint(), true, startTime, time.Now(), nil, true)
+	telemetryClient.TrackDependency(ctx, "CosmosDBOrderRepository", "DeleteOrder", "CosmosDB", r.client.Endpoint(), true, startTime, time.Now(), order.ToMap(), true)
 
 	return &order, nil
 }

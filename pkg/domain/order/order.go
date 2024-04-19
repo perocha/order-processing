@@ -1,5 +1,7 @@
 package order
 
+import "encoding/json"
+
 // Order definition
 type Order struct {
 	Id              string `json:"id"`
@@ -17,5 +19,22 @@ func (e *Order) ToMap() map[string]string {
 		"ProductID":       e.ProductID,
 		"CustomerID":      e.CustomerID,
 		"Status":          e.Status,
+	}
+}
+
+// Convert Order struct into a JSON
+func (e *Order) ToJSON() ([]byte, error) {
+	return json.Marshal(e)
+}
+
+// Return the Order ID
+func (e *Order) GetOrderID() string {
+	return e.Id
+}
+
+// Return order id as a key/value pair
+func (e *Order) GetOrderIDMap() map[string]string {
+	return map[string]string{
+		"OrderId": e.Id,
 	}
 }

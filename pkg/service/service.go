@@ -100,7 +100,6 @@ func (s *ServiceImpl) processEvent(ctx context.Context, event event.Event) error
 			telemetryClient.TrackException(ctx, "services::processEvent::Error creating order", err, telemetry.Error, properties, true)
 			return err
 		}
-		telemetryClient.TrackTrace(ctx, "services::processEvent::Order created", telemetry.Information, nil, true)
 
 	case "delete_order":
 		// Delete an order from the database
@@ -112,7 +111,6 @@ func (s *ServiceImpl) processEvent(ctx context.Context, event event.Event) error
 			telemetryClient.TrackException(ctx, "services::processEvent::Error deleting order", err, telemetry.Error, properties, true)
 			return err
 		}
-		telemetryClient.TrackTrace(ctx, "services::processEvent::Order deleted", telemetry.Information, nil, true)
 
 	case "update_order":
 		// Update an order in the database
@@ -124,7 +122,6 @@ func (s *ServiceImpl) processEvent(ctx context.Context, event event.Event) error
 			telemetryClient.TrackException(ctx, "services::processEvent::Error updating order", err, telemetry.Error, properties, true)
 			return err
 		}
-		telemetryClient.TrackTrace(ctx, "services::processEvent::Order updated", telemetry.Information, nil, true)
 
 	default:
 		// Handle unsupported event types or errors
