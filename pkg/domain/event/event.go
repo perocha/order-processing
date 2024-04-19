@@ -16,8 +16,13 @@ type Event struct {
 // Convert Event struct into a map[string]string
 func (e *Event) ToMap() map[string]string {
 	return map[string]string{
-		"Type":      e.Type,
-		"EventID":   e.EventID,
-		"Timestamp": e.Timestamp.Format(time.RFC3339),
+		"Type":                         e.Type,
+		"EventID":                      e.EventID,
+		"Timestamp":                    e.Timestamp.Format(time.RFC3339),
+		"OrderPayload":                 e.OrderPayload.Id,
+		"OrderPayload.ProductCategory": e.OrderPayload.ProductCategory,
+		"OrderPayload.ProductID":       e.OrderPayload.ProductID,
+		"OrderPayload.CustomerID":      e.OrderPayload.CustomerID,
+		"OrderPayload.Status":          e.OrderPayload.Status,
 	}
 }
