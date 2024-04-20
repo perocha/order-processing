@@ -4,11 +4,10 @@ import (
 	"context"
 	"os"
 
-	"github.com/perocha/order-processing/pkg/appcontext"
+	"github.com/perocha/goutils/pkg/telemetry"
 	"github.com/perocha/order-processing/pkg/domain/event"
 	"github.com/perocha/order-processing/pkg/infrastructure/adapter/database"
 	"github.com/perocha/order-processing/pkg/infrastructure/adapter/messaging"
-	"github.com/perocha/order-processing/pkg/infrastructure/telemetry"
 )
 
 // ServiceImpl is a struct implementing the Service interface.
@@ -47,7 +46,7 @@ func (s *ServiceImpl) Start(ctx context.Context, signals <-chan os.Signal) error
 		select {
 		case message := <-channel:
 			// Update the context with the operation ID
-			ctx = context.WithValue(ctx, appcontext.OperationIDKeyContextKey, message.OperationID)
+			ctx = context.WithValue(ctx, telemetry.OperationIDKeyContextKey, message.OperationID)
 
 			if message.Error == nil {
 				// New message received in channel. Process the event.

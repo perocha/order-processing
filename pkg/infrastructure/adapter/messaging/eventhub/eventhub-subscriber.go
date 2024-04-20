@@ -13,10 +13,9 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs/checkpoints"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/container"
 
-	"github.com/perocha/order-processing/pkg/appcontext"
+	"github.com/perocha/goutils/pkg/telemetry"
 	"github.com/perocha/order-processing/pkg/domain/event"
 	"github.com/perocha/order-processing/pkg/infrastructure/adapter/messaging"
-	"github.com/perocha/order-processing/pkg/infrastructure/telemetry"
 )
 
 type EventHubAdapterImpl struct {
@@ -149,7 +148,7 @@ func (a *EventHubAdapterImpl) processEventsForPartition(ctx context.Context, par
 			// Track the current time to log the telemetry and create a new operation uuid (add to the context)
 			startTime := time.Now()
 			operationID := uuid.New().String()
-			ctx := context.WithValue(context.Background(), appcontext.OperationIDKeyContextKey, operationID)
+			ctx := context.WithValue(context.Background(), telemetry.OperationIDKeyContextKey, operationID)
 			log.Printf("EventHubAdapter::processEventsForPartition::OperationID=%s::Message received=%s\n", operationID, string(eventItem.Body))
 
 			// Events received!! Process the message

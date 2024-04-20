@@ -7,10 +7,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/perocha/order-processing/pkg/appcontext"
-
 	"github.com/microsoft/ApplicationInsights-Go/appinsights"
 	"github.com/microsoft/ApplicationInsights-Go/appinsights/contracts"
+	"github.com/perocha/goutils/pkg/telemetry"
 )
 
 const (
@@ -59,7 +58,7 @@ func (t *Telemetry) TrackTrace(ctx context.Context, message string, severity Sev
 	// Create the log message
 	txtMessage := fmt.Sprintf("%s::%s", SERVICE_NAME, message)
 	// Retrieve the operationID from the context and add it to the log message
-	operationID, ok := ctx.Value(appcontext.OperationIDKeyContextKey).(string)
+	operationID, ok := ctx.Value(telemetry.OperationIDKeyContextKey).(string)
 	if ok && operationID != "" {
 		// Add operationID to the console message
 		txtMessage = fmt.Sprintf("%s::OperationID=%s", txtMessage, operationID)
@@ -98,7 +97,7 @@ func (t *Telemetry) TrackException(ctx context.Context, message string, err erro
 	// Create the log message
 	txtMessage := fmt.Sprintf("%s::%s", SERVICE_NAME, message)
 	// Retrieve the operationID from the context and add it to the log message
-	operationID, ok := ctx.Value(appcontext.OperationIDKeyContextKey).(string)
+	operationID, ok := ctx.Value(telemetry.OperationIDKeyContextKey).(string)
 	if ok && operationID != "" {
 		// Add operationID to the console message
 		txtMessage = fmt.Sprintf("%s::OperationID=%s", txtMessage, operationID)
@@ -187,7 +186,7 @@ func (t *Telemetry) TrackDependency(ctx context.Context, dependencyData string, 
 	}
 
 	// Get the operationID from the context
-	if operationID, ok := ctx.Value(appcontext.OperationIDKeyContextKey).(string); ok {
+	if operationID, ok := ctx.Value(telemetry.OperationIDKeyContextKey).(string); ok {
 		// Set parent id
 		if operationID != "" {
 			dependency.Tags.Operation().SetParentId(operationID)
@@ -202,7 +201,7 @@ func (t *Telemetry) TrackDependency(ctx context.Context, dependencyData string, 
 
 // Helper function to retrieve the telemetry client from the context
 func GetTelemetryClient(ctx context.Context) *Telemetry {
-	telemetryClient, ok := ctx.Value(appcontext.TelemetryContextKey).(*Telemetry)
+	telemetryClient, ok := ctx.Value(telemetry.TelemetryContextKey).(*Telemetry)
 	if !ok {
 		log.Panic("Telemetry client not found in context")
 	}

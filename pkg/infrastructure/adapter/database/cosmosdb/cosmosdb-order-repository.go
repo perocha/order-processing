@@ -7,8 +7,8 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
+	"github.com/perocha/goutils/pkg/telemetry"
 	"github.com/perocha/order-processing/pkg/domain/order"
-	"github.com/perocha/order-processing/pkg/infrastructure/telemetry"
 )
 
 // CosmosDB order repository

@@ -8,11 +8,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/perocha/order-processing/pkg/appcontext"
+	"github.com/perocha/goutils/pkg/telemetry"
 	"github.com/perocha/order-processing/pkg/config"
 	"github.com/perocha/order-processing/pkg/infrastructure/adapter/database/cosmosdb"
 	"github.com/perocha/order-processing/pkg/infrastructure/adapter/messaging/eventhub"
-	"github.com/perocha/order-processing/pkg/infrastructure/telemetry"
 	"github.com/perocha/order-processing/pkg/service"
 )
 
@@ -37,7 +36,7 @@ func main() {
 		panic("Main::Failed to initialize App Insights")
 	}
 	// Add telemetry object to the context, so that it can be reused across the application
-	ctx := context.WithValue(context.Background(), appcontext.TelemetryContextKey, telemetryClient)
+	ctx := context.WithValue(context.Background(), telemetry.TelemetryContextKey, telemetryClient)
 
 	// Initialize CosmosDB repository
 	orderRepository, err := cosmosdb.NewCosmosDBOrderRepository(ctx, cfg.CosmosdbEndpoint, cfg.CosmosdbConnectionString, cfg.CosmosdbDatabaseName, cfg.CosmosdbContainerName)
