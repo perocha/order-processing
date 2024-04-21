@@ -18,8 +18,8 @@ type EventHubAdapterImpl struct {
 	eventHubName     string
 }
 
-// Initializes a new EventHubAdapter (both consumer and producer clients)
-func EventHubAdapterInit(ctx context.Context, eventHubName, consumerConnectionString, producerConnectionString, containerName, checkpointStoreConnectionString string) (*EventHubAdapterImpl, error) {
+// Initializes only the consumer client
+func ConsumerInitializer(ctx context.Context, eventHubName, consumerConnectionString, containerName, checkpointStoreConnectionString string) (*EventHubAdapterImpl, error) {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
 
 	// create a container client using a connection string and container name
@@ -50,6 +50,28 @@ func EventHubAdapterInit(ctx context.Context, eventHubName, consumerConnectionSt
 		return nil, err
 	}
 
+	// Obtain the eventHubName from the consumer client
+	eventHubProperties, err := consumerClient.GetEventHubProperties(ctx, nil)
+	if err != nil {
+		telemetryClient.TrackException(ctx, "EventHubAdapter::Error getting event hub properties", err, telemetry.Critical, nil, true)
+		return nil, err
+	}
+
+	adapter := &EventHubAdapterImpl{
+		ehProcessor:      processor,
+		ehConsumerClient: consumerClient,
+		checkpointStore:  checkpointStore,
+		checkClient:      checkClient,
+		eventHubName:     eventHubProperties.Name,
+	}
+
+	return adapter, nil
+}
+
+// Initializes only the producer client
+func ProducerInitializer(ctx context.Context, eventHubName, producerConnectionString string) (*EventHubAdapterImpl, error) {
+	telemetryClient := telemetry.GetTelemetryClient(ctx)
+
 	// Create a new producer client
 	producerClient, err := azeventhubs.NewProducerClientFromConnectionString(producerConnectionString, eventHubName, nil)
 	if err != nil {
@@ -60,13 +82,16 @@ func EventHubAdapterInit(ctx context.Context, eventHubName, consumerConnectionSt
 		return nil, err
 	}
 
+	// Obtain the eventHubName from the producer client
+	eventHubProperties, err := producerClient.GetEventHubProperties(ctx, nil)
+	if err != nil {
+		telemetryClient.TrackException(ctx, "EventHubAdapter::Error getting event hub properties", err, telemetry.Critical, nil, true)
+		return nil, err
+	}
+
 	adapter := &EventHubAdapterImpl{
-		ehProcessor:      processor,
-		ehConsumerClient: consumerClient,
-		checkpointStore:  checkpointStore,
-		checkClient:      checkClient,
 		ehProducerClient: producerClient,
-		eventHubName:     eventHubName,
+		eventHubName:     eventHubProperties.Name,
 	}
 
 	return adapter, nil
@@ -78,15 +103,27 @@ func (a *EventHubAdapterImpl) Close(ctx context.Context) error {
 	telemetryClient.TrackTrace(ctx, "EventHubAdapter::Close::Stopping event hub consumer and producer clients", telemetry.Information, nil, true)
 
 	// Close the consumer client
-	a.ehConsumerClient.Close(context.TODO())
-
-	err := a.ehProducerClient.Close(ctx)
-	if err != nil {
-		properties := map[string]string{
-			"Error": err.Error(),
+	if a.ehConsumerClient != nil {
+		err := a.ehConsumerClient.Close(context.TODO())
+		if err != nil {
+			properties := map[string]string{
+				"Error": err.Error(),
+			}
+			telemetryClient.TrackException(ctx, "EventHubAdapter::Consumer client close failed", err, telemetry.Critical, properties, true)
+			return err
 		}
-		telemetryClient.TrackException(ctx, "EventHubAdapter::Close::Failed", err, telemetry.Critical, properties, true)
-		return err
+	}
+
+	// Close the producer client
+	if a.ehProducerClient != nil {
+		err := a.ehProducerClient.Close(ctx)
+		if err != nil {
+			properties := map[string]string{
+				"Error": err.Error(),
+			}
+			telemetryClient.TrackException(ctx, "EventHubAdapter::Producer client close failed", err, telemetry.Critical, properties, true)
+			return err
+		}
 	}
 
 	telemetryClient.TrackTrace(ctx, "EventHubAdapter::Closing eventhub", telemetry.Information, nil, true)

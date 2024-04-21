@@ -9,11 +9,10 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs"
 	"github.com/perocha/goutils/pkg/telemetry"
-	"github.com/perocha/order-processing/pkg/domain/event"
 )
 
 // Publish an event to the EventHub
-func (p *EventHubAdapterImpl) Publish(ctx context.Context, event event.Event) error {
+func (p *EventHubAdapterImpl) Publish(ctx context.Context, data interface{}) error {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
 	startTime := time.Now()
 
@@ -34,7 +33,7 @@ func (p *EventHubAdapterImpl) Publish(ctx context.Context, event event.Event) er
 	}
 
 	// Convert the message to JSON
-	jsonData, err := json.Marshal(event)
+	jsonData, err := json.Marshal(data)
 	if err != nil {
 		// Failed to marshal message, log dependency failure to App Insights
 		telemetryClient.TrackException(ctx, "EventHub::Publish::Failed", err, telemetry.Critical, nil, true)
@@ -72,6 +71,7 @@ func (p *EventHubAdapterImpl) Publish(ctx context.Context, event event.Event) er
 		return err
 	}
 
+	// Track the dependency to App Insights, using event hub name as the target
 	telemetryClient.TrackDependency(ctx, "Eventhub", "Publish EventHub message", "EventHub", p.eventHubName, true, startTime, time.Now(), nil, true)
 
 	return nil

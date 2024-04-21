@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 
+	"github.com/google/uuid"
 	"github.com/perocha/goutils/pkg/telemetry"
 	"github.com/perocha/order-processing/pkg/domain/event"
 	"github.com/perocha/order-processing/pkg/infrastructure/adapter/database"
@@ -12,21 +13,24 @@ import (
 
 // ServiceImpl is a struct implementing the Service interface.
 type ServiceImpl struct {
-	messagingClient messaging.MessagingSystem
-	orderRepo       database.OrderRepository
+	consumerInstance messaging.MessagingSystem
+	producerInstance messaging.MessagingSystem
+	orderRepo        database.OrderRepository
 }
 
 // Creates a new instance of ServiceImpl.
-func Initialize(ctx context.Context, messagingSystem messaging.MessagingSystem, orderRepository database.OrderRepository) *ServiceImpl {
+func Initialize(ctx context.Context, consumer messaging.MessagingSystem, producer messaging.MessagingSystem, orderRepository database.OrderRepository) *ServiceImpl {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
 	telemetryClient.TrackTrace(ctx, "services::Initialize::Initializing service logic", telemetry.Information, nil, true)
 
-	messagingClient := messagingSystem
+	consumerInstance := consumer
+	producerInstance := producer
 	orderRepo := orderRepository
 
 	return &ServiceImpl{
-		messagingClient: messagingClient,
-		orderRepo:       orderRepo,
+		consumerInstance: consumerInstance,
+		producerInstance: producerInstance,
+		orderRepo:        orderRepo,
 	}
 }
 
@@ -34,7 +38,7 @@ func Initialize(ctx context.Context, messagingSystem messaging.MessagingSystem, 
 func (s *ServiceImpl) Start(ctx context.Context, signals <-chan os.Signal) error {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
 
-	channel, cancelCtx, err := s.messagingClient.Subscribe(ctx)
+	channel, cancelCtx, err := s.consumerInstance.Subscribe(ctx)
 	if err != nil {
 		telemetryClient.TrackException(ctx, "services::Start::Failed to subscribe to events", err, telemetry.Critical, nil, true)
 		return err
@@ -52,7 +56,14 @@ func (s *ServiceImpl) Start(ctx context.Context, signals <-chan os.Signal) error
 				// New message received in channel. Process the event.
 				properties := message.Event.ToMap()
 				telemetryClient.TrackTrace(ctx, "services::Start::Received message", telemetry.Information, properties, true)
-				s.processEvent(ctx, message.Event)
+				err := s.processEvent(ctx, message.Event)
+				if err != nil {
+					// Error processing message. Log and continue
+					properties := map[string]string{
+						"Error": err.Error(),
+					}
+					telemetryClient.TrackException(ctx, "services::Start::Error processing message", err, telemetry.Error, properties, true)
+				}
 			} else {
 				// Error received. In this case we'll discard message but report an exception
 				properties := map[string]string{
@@ -63,12 +74,12 @@ func (s *ServiceImpl) Start(ctx context.Context, signals <-chan os.Signal) error
 		case <-ctx.Done():
 			telemetryClient.TrackTrace(ctx, "services::Start::Context canceled. Stopping event listener.", telemetry.Information, nil, true)
 			cancelCtx()
-			s.messagingClient.Close(ctx)
+			s.consumerInstance.Close(ctx)
 			return nil
 		case <-signals:
 			telemetryClient.TrackTrace(ctx, "services::Start::Received termination signal", telemetry.Information, nil, true)
 			cancelCtx()
-			s.messagingClient.Close(ctx)
+			s.consumerInstance.Close(ctx)
 			return nil
 		}
 	}
@@ -79,7 +90,7 @@ func (s *ServiceImpl) Stop(ctx context.Context) {
 	telemetryClient := telemetry.GetTelemetryClient(ctx)
 	telemetryClient.TrackTrace(ctx, "services::Stop::Stopping service", telemetry.Information, nil, true)
 
-	s.messagingClient.Close(ctx)
+	s.consumerInstance.Close(ctx)
 }
 
 // ProcessEvent processes an incoming event.
@@ -126,6 +137,15 @@ func (s *ServiceImpl) processEvent(ctx context.Context, event event.Event) error
 		// Handle unsupported event types or errors
 		telemetryClient.TrackTrace(ctx, "services::processEvent::Unsupported event type", telemetry.Warning, nil, true)
 	}
+
+	// Event processed successfully, we'll publish a message to event hub to confirm
+	response := ResponseMessage{
+		MessageID: uuid.New().String(),
+		EventID:   event.EventID,
+		Error:     nil,
+		Status:    "Processed",
+	}
+	s.producerInstance.Publish(ctx, response)
 
 	return nil
 }

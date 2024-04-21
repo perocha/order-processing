@@ -35,8 +35,7 @@ func main() {
 	// Initialize App Insights
 	telemetryClient, err := telemetry.Initialize(cfg.AppInsightsInstrumentationKey, SERVICE_NAME)
 	if err != nil {
-		log.Printf("Main::Fatal error::Failed to initialize App Insights %s\n", err.Error())
-		panic("Main::Failed to initialize App Insights")
+		log.Fatalf("Main::Fatal error::Failed to initialize App Insights %s\n", err.Error())
 	}
 	// Add telemetry object to the context, so that it can be reused across the application
 	ctx := context.WithValue(context.Background(), telemetry.TelemetryContextKey, telemetryClient)
@@ -45,14 +44,24 @@ func main() {
 	orderRepository, err := cosmosdb.NewCosmosDBOrderRepository(ctx, cfg.CosmosdbEndpoint, cfg.CosmosdbConnectionString, cfg.CosmosdbDatabaseName, cfg.CosmosdbContainerName)
 	if err != nil {
 		telemetryClient.TrackException(ctx, "Main::Fatal error::Failed to initialize CosmosDB repository", err, telemetry.Critical, nil, true)
-		panic("Main::Fatal error::Failed to initialize CosmosDB repository")
+		log.Fatalf("Main::Fatal error::Failed to initialize CosmosDB repository %s\n", err.Error())
 	}
 
 	// Initialize EventHub subscriber adapter
-	eventHubAdapter, err := eventhub.EventHubAdapterInit(ctx, cfg.EventHubName, cfg.EventHubConsumerConnectionString, cfg.EventHubProducerConnectionString, cfg.CheckpointStoreContainerName, cfg.CheckpointStoreConnectionString)
+	//	eventHubAdapter, err := eventhub.EventHubAdapterInit(ctx, cfg.EventHubName, cfg.EventHubConsumerConnectionString, cfg.EventHubProducerConnectionString, cfg.CheckpointStoreContainerName, cfg.CheckpointStoreConnectionString)
+
+	// Initialize EventHub consumer adapter
+	consumerInstance, err := eventhub.ConsumerInitializer(ctx, cfg.EventHubNameConsumer, cfg.EventHubConsumerConnectionString, cfg.CheckpointStoreContainerName, cfg.CheckpointStoreConnectionString)
 	if err != nil {
 		telemetryClient.TrackException(ctx, "Main::Fatal error::Failed to initialize EventHub", err, telemetry.Critical, nil, true)
-		panic("Main::Fatal error::Failed to initialize EventHub")
+		log.Fatalf("Main::Fatal error::Failed to initialize EventHub %s\n", err.Error())
+	}
+
+	// Initialize EventHub publisher adapter
+	producerInstance, err := eventhub.ProducerInitializer(ctx, cfg.EventHubNameProducer, cfg.EventHubProducerConnectionString)
+	if err != nil {
+		telemetryClient.TrackException(ctx, "Main::Fatal error::Failed to initialize EventHub", err, telemetry.Critical, nil, true)
+		log.Fatalf("Main::Fatal error::Failed to initialize EventHub %s\n", err.Error())
 	}
 
 	telemetryClient.TrackTrace(ctx, "Main::All adapters initialized successfully", telemetry.Information, nil, true)
@@ -62,7 +71,7 @@ func main() {
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
 	// Initialize service
-	serviceInstance := service.Initialize(ctx, eventHubAdapter, orderRepository)
+	serviceInstance := service.Initialize(ctx, consumerInstance, producerInstance, orderRepository)
 	go serviceInstance.Start(ctx, signals)
 
 	telemetryClient.TrackTrace(ctx, "Main::Service layer initialized successfully", telemetry.Information, nil, true)

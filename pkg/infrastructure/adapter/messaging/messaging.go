@@ -14,7 +14,7 @@ type Message struct {
 }
 
 type MessagingSystem interface {
-	Publish(ctx context.Context, event event.Event) error
+	Publish(ctx context.Context, data interface{}) error
 	// TODO how to deal with "topic" concept?
 	Subscribe(ctx context.Context) (<-chan Message, context.CancelFunc, error)
 	Close(ctx context.Context) error

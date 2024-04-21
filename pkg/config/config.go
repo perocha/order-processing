@@ -9,8 +9,9 @@ import (
 type MicroserviceConfig struct {
 	configClient                     *config.Config
 	AppInsightsInstrumentationKey    string
-	EventHubName                     string
+	EventHubNameConsumer             string
 	EventHubConsumerConnectionString string
+	EventHubNameProducer             string
 	EventHubProducerConnectionString string
 	CheckpointStoreContainerName     string
 	CheckpointStoreConnectionString  string
@@ -51,7 +52,7 @@ func (cfg *MicroserviceConfig) RefreshConfig() error {
 		return err
 	}
 
-	if err := retrieveConfigValue(cfg, "EVENTHUB_NAME", &cfg.EventHubName); err != nil {
+	if err := retrieveConfigValue(cfg, "EVENTHUB_CONSUMER_NAME", &cfg.EventHubNameConsumer); err != nil {
 		return err
 	}
 
@@ -59,7 +60,7 @@ func (cfg *MicroserviceConfig) RefreshConfig() error {
 		return err
 	}
 
-	if err := retrieveConfigValue(cfg, "EVENTHUB_PUBLISHER_CONNECTION_STRING", &cfg.EventHubProducerConnectionString); err != nil {
+	if err := retrieveConfigValue(cfg, "EVENTHUB_PRODUCER_CONNECTION_STRING", &cfg.EventHubProducerConnectionString); err != nil {
 		return err
 	}
 
