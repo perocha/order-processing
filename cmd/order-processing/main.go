@@ -48,8 +48,8 @@ func main() {
 		panic("Main::Fatal error::Failed to initialize CosmosDB repository")
 	}
 
-	// Initialize EventHub
-	eventHubInstance, err := eventhub.EventHubAdapterInit(ctx, cfg.EventHubConnectionString, cfg.EventHubName, cfg.CheckpointStoreContainerName, cfg.CheckpointStoreConnectionString)
+	// Initialize EventHub subscriber adapter
+	eventHubAdapter, err := eventhub.EventHubAdapterInit(ctx, cfg.EventHubName, cfg.EventHubConsumerConnectionString, cfg.EventHubProducerConnectionString, cfg.CheckpointStoreContainerName, cfg.CheckpointStoreConnectionString)
 	if err != nil {
 		telemetryClient.TrackException(ctx, "Main::Fatal error::Failed to initialize EventHub", err, telemetry.Critical, nil, true)
 		panic("Main::Fatal error::Failed to initialize EventHub")
@@ -62,7 +62,7 @@ func main() {
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
 	// Initialize service
-	serviceInstance := service.Initialize(ctx, eventHubInstance, orderRepository)
+	serviceInstance := service.Initialize(ctx, eventHubAdapter, orderRepository)
 	go serviceInstance.Start(ctx, signals)
 
 	telemetryClient.TrackTrace(ctx, "Main::Service layer initialized successfully", telemetry.Information, nil, true)

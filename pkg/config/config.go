@@ -7,16 +7,17 @@ import (
 )
 
 type MicroserviceConfig struct {
-	configClient                    *config.Config
-	AppInsightsInstrumentationKey   string
-	EventHubName                    string
-	EventHubConnectionString        string
-	CheckpointStoreContainerName    string
-	CheckpointStoreConnectionString string
-	CosmosdbEndpoint                string
-	CosmosdbConnectionString        string
-	CosmosdbDatabaseName            string
-	CosmosdbContainerName           string
+	configClient                     *config.Config
+	AppInsightsInstrumentationKey    string
+	EventHubName                     string
+	EventHubConsumerConnectionString string
+	EventHubProducerConnectionString string
+	CheckpointStoreContainerName     string
+	CheckpointStoreConnectionString  string
+	CosmosdbEndpoint                 string
+	CosmosdbConnectionString         string
+	CosmosdbDatabaseName             string
+	CosmosdbContainerName            string
 }
 
 // Initialize configuration client, either from environment variable or from file
@@ -54,7 +55,11 @@ func (cfg *MicroserviceConfig) RefreshConfig() error {
 		return err
 	}
 
-	if err := retrieveConfigValue(cfg, "EVENTHUB_CONSUMERVNEXT_CONNECTION_STRING", &cfg.EventHubConnectionString); err != nil {
+	if err := retrieveConfigValue(cfg, "EVENTHUB_CONSUMERVNEXT_CONNECTION_STRING", &cfg.EventHubConsumerConnectionString); err != nil {
+		return err
+	}
+
+	if err := retrieveConfigValue(cfg, "EVENTHUB_PUBLISHER_CONNECTION_STRING", &cfg.EventHubProducerConnectionString); err != nil {
 		return err
 	}
 
