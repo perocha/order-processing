@@ -1,90 +1,96 @@
 package config
 
 import (
-	"context"
-	"errors"
-	"log"
 	"os"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/data/azappconfig"
-	"gopkg.in/yaml.v2"
+	"github.com/perocha/goutils/pkg/config"
 )
 
-type Config struct {
-	AppConfigurationConnectionString string
-	EventHubName                     string
-	EventHubConnectionString         string
-	CheckpointStoreContainerName     string
-	CheckpointStoreConnectionString  string
-	AppInsightsInstrumentationKey    string
-	CosmosdbEndpoint                 string
-	CosmosdbConnectionString         string
-	CosmosdbDatabaseName             string
-	CosmosdbContainerName            string
-	client                           *azappconfig.Client
+type MicroserviceConfig struct {
+	configClient                    *config.Config
+	AppInsightsInstrumentationKey   string
+	EventHubName                    string
+	EventHubConnectionString        string
+	CheckpointStoreContainerName    string
+	CheckpointStoreConnectionString string
+	CosmosdbEndpoint                string
+	CosmosdbConnectionString        string
+	CosmosdbDatabaseName            string
+	CosmosdbContainerName           string
 }
 
-type yamlConfig struct {
-	AppConfigurationConnectionString string `yaml:"APPCONFIGURATION_CONNECTION_STRING"`
-}
-
-// InitializeConfig creates a new instance of Config with values loaded from environment variables
-func InitializeConfig(configFile string) (*Config, error) {
-	cfg := &Config{}
-
-	// Create a new App Configuration client
+// Initialize configuration client, either from environment variable or from file
+func InitializeConfig() (*MicroserviceConfig, error) {
+	// First try to get the App Configuration connection string as environment variable
 	connectionString := os.Getenv("APPCONFIGURATION_CONNECTION_STRING")
-	if connectionString == "" {
-		log.Printf("Error: APPCONFIGURATION_CONNECTION_STRING environment variable is not set, loading from %s\n", configFile)
-		data, err := os.ReadFile(configFile)
+
+	if connectionString != "" {
+		mycfg, err := config.NewConfigFromConnectionString(connectionString)
 		if err != nil {
-			log.Printf("Error: Failed to read configuration yaml file: %v\n", err)
 			return nil, err
 		}
-
-		var yamlCfg yamlConfig
-		err = yaml.Unmarshal(data, &yamlCfg)
+		return &MicroserviceConfig{
+			configClient: mycfg,
+		}, nil
+	} else {
+		fileName := "config.yaml"
+		mycfg, err := config.NewConfigFromFile(fileName)
 		if err != nil {
-			log.Printf("Error: Failed to unmarshal config.yaml file: %v\n", err)
 			return nil, err
 		}
-		connectionString = yamlCfg.AppConfigurationConnectionString
+		return &MicroserviceConfig{
+			configClient: mycfg,
+		}, nil
 	}
-
-	var err error
-	cfg.client, err = azappconfig.NewClientFromConnectionString(connectionString, nil)
-	if err != nil {
-		log.Println("Error: Failed to create new App Configuration client")
-		return nil, err
-	}
-
-	cfg.AppInsightsInstrumentationKey, _ = cfg.GetVar("APPINSIGHTS_INSTRUMENTATIONKEY")
-	cfg.EventHubName, _ = cfg.GetVar("EVENTHUB_NAME")
-	cfg.EventHubConnectionString, _ = cfg.GetVar("EVENTHUB_CONSUMERVNEXT_CONNECTION_STRING")
-	cfg.CheckpointStoreContainerName, _ = cfg.GetVar("CHECKPOINTSTORE_CONTAINER_NAME")
-	cfg.CheckpointStoreConnectionString, _ = cfg.GetVar("CHECKPOINTSTORE_STORAGE_CONNECTION_STRING")
-	cfg.CosmosdbEndpoint, _ = cfg.GetVar("COSMOSDB_ENDPOINT")
-	cfg.CosmosdbConnectionString, _ = cfg.GetVar("COSMOSDB_CONNECTION_STRING")
-	cfg.CosmosdbDatabaseName, _ = cfg.GetVar("COSMOSDB_DATABASE_NAME")
-	cfg.CosmosdbContainerName, _ = cfg.GetVar("COSMOSDB_CONTAINER_NAME")
-
-	return cfg, nil
 }
 
-// GetVar retrieves a configuration setting by key from App Configuration
-func (cfg *Config) GetVar(key string) (string, error) {
-	if cfg.client == nil {
-		err := errors.New("app configuration client not initialized")
-		log.Println("App configuration client not initialized")
-		return "", err
+// Refresh configuration, with the latest values from the configuration store
+func (cfg *MicroserviceConfig) RefreshConfig() error {
+	if err := retrieveConfigValue(cfg, "APPINSIGHTS_INSTRUMENTATIONKEY", &cfg.AppInsightsInstrumentationKey); err != nil {
+		return err
 	}
 
-	// Get the setting value from App Configuration
-	resp, err := cfg.client.GetSetting(context.TODO(), key, nil)
+	if err := retrieveConfigValue(cfg, "EVENTHUB_NAME", &cfg.EventHubName); err != nil {
+		return err
+	}
+
+	if err := retrieveConfigValue(cfg, "EVENTHUB_CONSUMERVNEXT_CONNECTION_STRING", &cfg.EventHubConnectionString); err != nil {
+		return err
+	}
+
+	if err := retrieveConfigValue(cfg, "CHECKPOINTSTORE_CONTAINER_NAME", &cfg.CheckpointStoreContainerName); err != nil {
+		return err
+	}
+
+	if err := retrieveConfigValue(cfg, "CHECKPOINTSTORE_STORAGE_CONNECTION_STRING", &cfg.CheckpointStoreConnectionString); err != nil {
+		return err
+	}
+
+	if err := retrieveConfigValue(cfg, "COSMOSDB_ENDPOINT", &cfg.CosmosdbEndpoint); err != nil {
+		return err
+	}
+
+	if err := retrieveConfigValue(cfg, "COSMOSDB_CONNECTION_STRING", &cfg.CosmosdbConnectionString); err != nil {
+		return err
+	}
+
+	if err := retrieveConfigValue(cfg, "COSMOSDB_DATABASE_NAME", &cfg.CosmosdbDatabaseName); err != nil {
+		return err
+	}
+
+	if err := retrieveConfigValue(cfg, "COSMOSDB_CONTAINER_NAME", &cfg.CosmosdbContainerName); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// RetrieveConfigValue retrieves a configuration value from the client and sets it in the target field.
+func retrieveConfigValue(cfg *MicroserviceConfig, key string, target *string) error {
+	configValue, err := cfg.configClient.GetVar(key)
 	if err != nil {
-		log.Printf("Error: Failed to get configuration setting %s\n", key)
-		return "", err
+		return err
 	}
-
-	return *resp.Value, nil
+	*target = configValue
+	return nil
 }

@@ -21,12 +21,15 @@ const (
 )
 
 func main() {
-	// Initialize configuration
-	cfg, err := config.InitializeConfig(configFile)
+	// Load the configuration
+	cfg, err := config.InitializeConfig()
 	if err != nil {
-		// Print error
-		log.Printf("Main::Fatal error::Failed to load configuration %s\n", err.Error())
-		panic("Main::Failed to load configuration")
+		log.Fatalf("Main::Fatal error::Failed to load configuration %s\n", err.Error())
+	}
+	// Refresh the configuration with the latest values
+	err = cfg.RefreshConfig()
+	if err != nil {
+		log.Fatalf("Main::Fatal error::Failed to refresh configuration %s\n", err.Error())
 	}
 
 	// Initialize App Insights
