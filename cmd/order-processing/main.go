@@ -8,10 +8,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/perocha/goadapters/database/cosmosdb"
+	"github.com/perocha/goadapters/messaging/eventhub"
 	"github.com/perocha/goutils/pkg/telemetry"
 	"github.com/perocha/order-processing/pkg/config"
-	"github.com/perocha/order-processing/pkg/infrastructure/adapter/database/cosmosdb"
-	"github.com/perocha/order-processing/pkg/infrastructure/adapter/messaging/eventhub"
 	"github.com/perocha/order-processing/pkg/service"
 )
 
@@ -41,14 +41,11 @@ func main() {
 	ctx := context.WithValue(context.Background(), telemetry.TelemetryContextKey, telemetryClient)
 
 	// Initialize CosmosDB repository
-	orderRepository, err := cosmosdb.NewCosmosDBOrderRepository(ctx, cfg.CosmosdbEndpoint, cfg.CosmosdbConnectionString, cfg.CosmosdbDatabaseName, cfg.CosmosdbContainerName)
+	orderRepository, err := cosmosdb.NewCosmosdbRepository(ctx, cfg.CosmosdbEndpoint, cfg.CosmosdbConnectionString, cfg.CosmosdbDatabaseName, cfg.CosmosdbContainerName)
 	if err != nil {
 		telemetryClient.TrackException(ctx, "Main::Fatal error::Failed to initialize CosmosDB repository", err, telemetry.Critical, nil, true)
 		log.Fatalf("Main::Fatal error::Failed to initialize CosmosDB repository %s\n", err.Error())
 	}
-
-	// Initialize EventHub subscriber adapter
-	//	eventHubAdapter, err := eventhub.EventHubAdapterInit(ctx, cfg.EventHubName, cfg.EventHubConsumerConnectionString, cfg.EventHubProducerConnectionString, cfg.CheckpointStoreContainerName, cfg.CheckpointStoreConnectionString)
 
 	// Initialize EventHub consumer adapter
 	consumerInstance, err := eventhub.ConsumerInitializer(ctx, cfg.EventHubNameConsumer, cfg.EventHubConsumerConnectionString, cfg.CheckpointStoreContainerName, cfg.CheckpointStoreConnectionString)
