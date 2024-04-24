@@ -1,6 +1,9 @@
 package order
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"errors"
+)
 
 // Order definition
 type Order struct {
@@ -20,6 +23,30 @@ func (e *Order) ToMap() map[string]string {
 		"CustomerID":      e.CustomerID,
 		"Status":          e.Status,
 	}
+}
+
+func NewOrder() *Order {
+	id := ""
+	productCategory := ""
+	productID := ""
+	customerID := ""
+	status := ""
+
+	return &Order{
+		Id:              id,
+		ProductCategory: productCategory,
+		ProductID:       productID,
+		CustomerID:      customerID,
+		Status:          status,
+	}
+}
+
+func (e *Order) Deserialize(data []byte) error {
+	err := json.Unmarshal(data, e)
+	if err != nil {
+		return errors.New("order::deserialize::error deserializing Order")
+	}
+	return nil
 }
 
 // Convert Order struct into a JSON
