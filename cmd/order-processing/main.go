@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"os/signal"
@@ -32,17 +33,35 @@ func main() {
 		log.Fatalf("Main::Fatal error::Failed to refresh configuration %s\n", err.Error())
 	}
 
+	telemetryConfig := telemetry.NewXTelemetryConfig(cfg.AppInsightsInstrumentationKey, SERVICE_NAME, "debug", 1)
+
+	xTelemetry, err := telemetry.NewXTelemetry(telemetryConfig)
+	if err != nil {
+		log.Fatalf("Main::Fatal error::Failed to initialize XTelemetry %s\n", err.Error())
+	}
+
 	// Initialize App Insights
-	telemetryClient, err := telemetry.Initialize(cfg.AppInsightsInstrumentationKey, SERVICE_NAME)
+	telemetryClient, err := telemetry.Initialize(cfg.AppInsightsInstrumentationKey, SERVICE_NAME, "debug")
 	if err != nil {
 		log.Fatalf("Main::Fatal error::Failed to initialize App Insights %s\n", err.Error())
 	}
 	// Add telemetry object to the context, so that it can be reused across the application
 	ctx := context.WithValue(context.Background(), telemetry.TelemetryContextKey, telemetryClient)
 
+	// Log the configuration
+	xTelemetry.Debug(ctx, "Main::Configuration loaded successfully DEBUG", telemetry.String("AppInsightsInstrumentationKey", cfg.AppInsightsInstrumentationKey))
+	xTelemetry.Info(ctx, "Main::Configuration loaded successfully INFO",
+		telemetry.String("AppInsightsInstrumentationKey", cfg.AppInsightsInstrumentationKey),
+		telemetry.String("CosmosdbEndpoint", cfg.CosmosdbEndpoint),
+		telemetry.String("CosmosdbConnectionString", cfg.CosmosdbConnectionString),
+	)
+	err = errors.New("this is a test error")
+	xTelemetry.Error(ctx, "Main::Fatal error::Failed to initialize CosmosDB repository", telemetry.String("error", err.Error()))
+
 	// Initialize CosmosDB repository
 	orderRepository, err := cosmosdb.NewCosmosdbRepository(ctx, cfg.CosmosdbEndpoint, cfg.CosmosdbConnectionString, cfg.CosmosdbDatabaseName, cfg.CosmosdbContainerName)
 	if err != nil {
+		xTelemetry.Error(ctx, "Main::Fatal error::Failed to initialize CosmosDB repository", telemetry.String("error", err.Error()))
 		telemetryClient.TrackException(ctx, "Main::Fatal error::Failed to initialize CosmosDB repository", err, telemetry.Critical, nil, true)
 		log.Fatalf("Main::Fatal error::Failed to initialize CosmosDB repository %s\n", err.Error())
 	}
@@ -61,7 +80,7 @@ func main() {
 		log.Fatalf("Main::Fatal error::Failed to initialize EventHub %s\n", err.Error())
 	}
 
-	telemetryClient.TrackTrace(ctx, "Main::All adapters initialized successfully", telemetry.Information, nil, true)
+	xTelemetry.Info(ctx, "Main::All adapters initialized successfully", telemetry.String("ServiceName", SERVICE_NAME))
 
 	// Create a channel to listen for termination signals
 	signals := make(chan os.Signal, 1)
@@ -71,7 +90,7 @@ func main() {
 	serviceInstance := service.Initialize(ctx, consumerInstance, producerInstance, orderRepository)
 	go serviceInstance.Start(ctx, signals)
 
-	telemetryClient.TrackTrace(ctx, "Main::Service layer initialized successfully", telemetry.Information, nil, true)
+	xTelemetry.Info(ctx, "Main::Service layer initialized successfully", telemetry.String("ServiceName", SERVICE_NAME))
 
 	// Infinite loop
 	for {
@@ -82,7 +101,7 @@ func main() {
 			return
 		case <-time.After(2 * time.Minute):
 			// Do nothing
-			log.Println("Main::Waiting for termination signal")
+			telemetryClient.TrackTrace(ctx, "Main::Waiting for termination signal", telemetry.Verbose, nil, true)
 		}
 	}
 }
