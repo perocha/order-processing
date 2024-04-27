@@ -19,8 +19,8 @@ type ServiceImpl struct {
 
 // Creates a new instance of ServiceImpl.
 func Initialize(ctx context.Context, consumer message.MessagingSystem, producer message.MessagingSystem, orderRepository database.DBRepository) *ServiceImpl {
-	telemetryClient := telemetry.GetTelemetryClient(ctx)
-	telemetryClient.TrackTrace(ctx, "services::Initialize::Initializing service logic", telemetry.Information, nil, true)
+	xTelemetry := telemetry.GetXTelemetryClient(ctx)
+	xTelemetry.Debug(ctx, "services::Initialize::Initializing service logic")
 
 	consumerInstance := consumer
 	producerInstance := producer
@@ -35,15 +35,15 @@ func Initialize(ctx context.Context, consumer message.MessagingSystem, producer 
 
 // Starts listening for incoming events.
 func (s *ServiceImpl) Start(ctx context.Context, signals <-chan os.Signal) error {
-	telemetryClient := telemetry.GetTelemetryClient(ctx)
+	xTelemetry := telemetry.GetXTelemetryClient(ctx)
 
 	channel, cancelCtx, err := s.consumerInstance.Subscribe(ctx)
 	if err != nil {
-		telemetryClient.TrackException(ctx, "services::Start::Failed to subscribe to events", err, telemetry.Critical, nil, true)
+		xTelemetry.Error(ctx, "services::Start::Failed to subscribe to events", telemetry.String("Error", err.Error()))
 		return err
 	}
 
-	telemetryClient.TrackTrace(ctx, "services::Start::Subscribed to events", telemetry.Information, nil, true)
+	xTelemetry.Info(ctx, "services::Start::Subscribed to events")
 
 	for {
 		select {
@@ -53,17 +53,14 @@ func (s *ServiceImpl) Start(ctx context.Context, signals <-chan os.Signal) error
 
 			if message.GetError() == nil {
 				// New message received in channel. Process the event.
-				telemetryClient.TrackTrace(ctx, "services::Start::Received message", telemetry.Information, nil, true)
+				xTelemetry.Debug(ctx, "services::Start::Received message")
 
 				// Get the data from, that is expected to be an Order
 				receivedOrder := order.NewOrder()
 				err := receivedOrder.Deserialize(message.GetData())
 				if err != nil {
 					// Error deserializing message. Log and continue
-					properties := map[string]string{
-						"Error": err.Error(),
-					}
-					telemetryClient.TrackException(ctx, "services::Start::Error deserializing message", err, telemetry.Error, properties, true)
+					xTelemetry.Error(ctx, "services::Start::Error deserializing message", telemetry.String("Error", err.Error()))
 					continue
 				}
 
@@ -71,25 +68,19 @@ func (s *ServiceImpl) Start(ctx context.Context, signals <-chan os.Signal) error
 				err = s.processEvent(ctx, message.GetOperationID(), message.GetCommand(), *receivedOrder)
 				if err != nil {
 					// Error processing message. Log and continue
-					properties := map[string]string{
-						"Error": err.Error(),
-					}
-					telemetryClient.TrackException(ctx, "services::Start::Error processing message", err, telemetry.Error, properties, true)
+					xTelemetry.Error(ctx, "services::Start::Error processing message", telemetry.String("Error", err.Error()))
 				}
 			} else {
 				// Error received. In this case we'll discard message but report an exception
-				properties := map[string]string{
-					"Error": message.GetError().Error(),
-				}
-				telemetryClient.TrackException(ctx, "services::Start::Error processing message", message.GetError(), telemetry.Error, properties, true)
+				xTelemetry.Error(ctx, "services::Start::Error processing message", telemetry.String("Error", message.GetError().Error()))
 			}
 		case <-ctx.Done():
-			telemetryClient.TrackTrace(ctx, "services::Start::Context canceled. Stopping event listener.", telemetry.Information, nil, true)
+			xTelemetry.Info(ctx, "services::Start::Context canceled. Stopping event listener")
 			cancelCtx()
 			s.consumerInstance.Close(ctx)
 			return nil
 		case <-signals:
-			telemetryClient.TrackTrace(ctx, "services::Start::Received termination signal", telemetry.Information, nil, true)
+			xTelemetry.Info(ctx, "services::Start::Received termination signal")
 			cancelCtx()
 			s.consumerInstance.Close(ctx)
 			return nil
@@ -99,7 +90,7 @@ func (s *ServiceImpl) Start(ctx context.Context, signals <-chan os.Signal) error
 
 // ProcessEvent processes an incoming event.
 func (s *ServiceImpl) processEvent(ctx context.Context, operationID string, command string, orderInfo order.Order) error {
-	telemetryClient := telemetry.GetTelemetryClient(ctx)
+	xTelemetry := telemetry.GetXTelemetryClient(ctx)
 
 	// Based on the event type, determine the action to be taken
 	switch command {
@@ -108,10 +99,7 @@ func (s *ServiceImpl) processEvent(ctx context.Context, operationID string, comm
 		// Create an order in the database
 		err := s.orderRepo.CreateDocument(ctx, orderInfo.ProductCategory, orderInfo)
 		if err != nil {
-			properties := map[string]string{
-				"Error": err.Error(),
-			}
-			telemetryClient.TrackException(ctx, "services::processEvent::Error creating order", err, telemetry.Error, properties, true)
+			xTelemetry.Error(ctx, "services::processEvent::Error creating order", telemetry.String("Error", err.Error()))
 			return err
 		}
 
@@ -119,10 +107,7 @@ func (s *ServiceImpl) processEvent(ctx context.Context, operationID string, comm
 		// Delete an order from the database
 		err := s.orderRepo.DeleteDocument(ctx, orderInfo.ProductCategory, orderInfo.Id)
 		if err != nil {
-			properties := map[string]string{
-				"Error": err.Error(),
-			}
-			telemetryClient.TrackException(ctx, "services::processEvent::Error deleting order", err, telemetry.Error, properties, true)
+			xTelemetry.Error(ctx, "services::processEvent::Error deleting order", telemetry.String("Error", err.Error()))
 			return err
 		}
 
@@ -130,16 +115,13 @@ func (s *ServiceImpl) processEvent(ctx context.Context, operationID string, comm
 		// Update an order in the database
 		err := s.orderRepo.UpdateDocument(ctx, orderInfo.ProductCategory, orderInfo.Id, orderInfo)
 		if err != nil {
-			properties := map[string]string{
-				"Error": err.Error(),
-			}
-			telemetryClient.TrackException(ctx, "services::processEvent::Error updating order", err, telemetry.Error, properties, true)
+			xTelemetry.Error(ctx, "services::processEvent::Error updating order", telemetry.String("Error", err.Error()))
 			return err
 		}
 
 	default:
 		// Handle unsupported event types or errors
-		telemetryClient.TrackTrace(ctx, "services::processEvent::Unsupported event type", telemetry.Warning, nil, true)
+		xTelemetry.Error(ctx, "services::processEvent::Unsupported event type", telemetry.String("Command", command))
 	}
 
 	// Event processed successfully, we'll publish a message to event hub to confirm
@@ -151,8 +133,8 @@ func (s *ServiceImpl) processEvent(ctx context.Context, operationID string, comm
 
 // Stop the service
 func (s *ServiceImpl) Stop(ctx context.Context) {
-	telemetryClient := telemetry.GetTelemetryClient(ctx)
-	telemetryClient.TrackTrace(ctx, "services::Stop::Stopping service", telemetry.Information, nil, true)
+	xTelemetry := telemetry.GetXTelemetryClient(ctx)
+	xTelemetry.Info(ctx, "services::Stop::Stopping service")
 
 	s.consumerInstance.Close(ctx)
 }
