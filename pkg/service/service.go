@@ -53,7 +53,7 @@ func (s *ServiceImpl) Start(ctx context.Context, signals <-chan os.Signal) error
 
 			if message.GetError() == nil {
 				// New message received in channel. Process the event.
-				xTelemetry.Debug(ctx, "services::Start::Received message")
+				xTelemetry.Info(ctx, "services::Start::Received message", telemetry.String("Command", message.GetCommand()), telemetry.String("Status", message.GetStatus()))
 
 				// Get the data from, that is expected to be an Order
 				receivedOrder := order.NewOrder()
@@ -97,6 +97,7 @@ func (s *ServiceImpl) processEvent(ctx context.Context, operationID string, comm
 
 	case "create_order":
 		// Create an order in the database
+		xTelemetry.Info(ctx, "services::processEvent::Creating order", telemetry.String("OrderID", orderInfo.Id))
 		err := s.orderRepo.CreateDocument(ctx, orderInfo.ProductCategory, orderInfo)
 		if err != nil {
 			xTelemetry.Error(ctx, "services::processEvent::Error creating order", telemetry.String("Error", err.Error()))
@@ -105,6 +106,7 @@ func (s *ServiceImpl) processEvent(ctx context.Context, operationID string, comm
 
 	case "delete_order":
 		// Delete an order from the database
+		xTelemetry.Info(ctx, "services::processEvent::Deleting order", telemetry.String("OrderID", orderInfo.Id))
 		err := s.orderRepo.DeleteDocument(ctx, orderInfo.ProductCategory, orderInfo.Id)
 		if err != nil {
 			xTelemetry.Error(ctx, "services::processEvent::Error deleting order", telemetry.String("Error", err.Error()))
@@ -113,6 +115,7 @@ func (s *ServiceImpl) processEvent(ctx context.Context, operationID string, comm
 
 	case "update_order":
 		// Update an order in the database
+		xTelemetry.Info(ctx, "services::processEvent::Updating order", telemetry.String("OrderID", orderInfo.Id))
 		err := s.orderRepo.UpdateDocument(ctx, orderInfo.ProductCategory, orderInfo.Id, orderInfo)
 		if err != nil {
 			xTelemetry.Error(ctx, "services::processEvent::Error updating order", telemetry.String("Error", err.Error()))
@@ -126,6 +129,7 @@ func (s *ServiceImpl) processEvent(ctx context.Context, operationID string, comm
 
 	// Event processed successfully, we'll publish a message to event hub to confirm
 	response := message.NewMessage(operationID, nil, "Processed", "", nil)
+	xTelemetry.Info(ctx, "services::processEvent::Publishing response message")
 	s.producerInstance.Publish(ctx, response)
 
 	return nil

@@ -44,7 +44,7 @@ func main() {
 	}
 
 	// Initialize telemetry package
-	telemetryConfig := telemetry.NewXTelemetryConfig(cfg.AppInsightsInstrumentationKey, SERVICE_NAME, "debug", 1)
+	telemetryConfig := telemetry.NewXTelemetryConfig(cfg.AppInsightsInstrumentationKey, SERVICE_NAME, "info", 1)
 	xTelemetry, err := telemetry.NewXTelemetry(telemetryConfig)
 	if err != nil {
 		log.Fatalf("Main::Fatal error::Failed to initialize XTelemetry %s\n", err.Error())
