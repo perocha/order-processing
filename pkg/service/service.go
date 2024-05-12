@@ -5,20 +5,20 @@ import (
 	"os"
 
 	"github.com/perocha/goadapters/database"
-	"github.com/perocha/goadapters/messaging/message"
+	"github.com/perocha/goadapters/messaging"
 	"github.com/perocha/goutils/pkg/telemetry"
 	"github.com/perocha/order-processing/pkg/domain/order"
 )
 
 // ServiceImpl is a struct implementing the Service interface.
 type ServiceImpl struct {
-	consumerInstance message.MessagingSystem
-	producerInstance message.MessagingSystem
+	consumerInstance messaging.MessagingSystem
+	producerInstance messaging.MessagingSystem
 	orderRepo        database.DBRepository
 }
 
 // Creates a new instance of ServiceImpl.
-func Initialize(ctx context.Context, consumer message.MessagingSystem, producer message.MessagingSystem, orderRepository database.DBRepository) *ServiceImpl {
+func Initialize(ctx context.Context, consumer messaging.MessagingSystem, producer messaging.MessagingSystem, orderRepository database.DBRepository) *ServiceImpl {
 	xTelemetry := telemetry.GetXTelemetryClient(ctx)
 	xTelemetry.Debug(ctx, "services::Initialize::Initializing service logic")
 
@@ -128,7 +128,7 @@ func (s *ServiceImpl) processEvent(ctx context.Context, operationID string, comm
 	}
 
 	// Event processed successfully, we'll publish a message to event hub to confirm
-	response := message.NewMessage(operationID, nil, "Processed", "", nil)
+	response := messaging.NewMessage(operationID, nil, "Processed", "", nil)
 	xTelemetry.Info(ctx, "services::processEvent::Publishing response message")
 	s.producerInstance.Publish(ctx, response)
 
