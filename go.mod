@@ -3,7 +3,7 @@ module github.com/perocha/order-processing
 go 1.22.2
 
 require (
-	github.com/perocha/goadapters v1.0.76
+	github.com/perocha/goadapters v1.0.77
 	github.com/perocha/goutils v1.0.49
 )
 
